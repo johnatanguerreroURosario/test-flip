@@ -1,0 +1,287 @@
+/* Layout */
+.flipbook-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+}
+
+.flipbook-status {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+}
+
+.flipbook-status.error {
+    color: #c00;
+}
+
+.flipbook {
+    --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Pages */
+.page {
+    background: #111827; /* dark slate */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid #1f2937;
+}
+
+.page img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.blank-page {
+    width: 100%;
+    height: 100%;
+    background: #1f2937;
+}
+
+/* Container */
+.flipbook-container {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    padding: 0.5rem 1rem 2rem;
+    background: #0f172a; /* overall dark background */
+    color: #e2e8f0;
+    box-sizing: border-box;
+}
+
+/* Dark control bar */
+.flipbook-controls.dark-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: center;
+    margin-bottom: .9rem;
+    background: #1e293b;
+    padding: .65rem 1rem;
+    border: 1px solid #334155;
+    border-radius: .75rem;
+}
+
+.flipbook-controls .control-group {
+    display: inline-flex;
+    gap: .4rem;
+    align-items: center;
+}
+
+.flipbook-controls .nav-group,
+.flipbook-controls .zoom-group {
+    gap: .55rem;
+}
+
+
+/* Buttons */
+/* Buttons */
+.flipbook-controls .btn {
+    --btn-bg: #334155;
+    --btn-color: #f1f5f9;
+    --btn-border: #475569;
+    position: relative;
+    font-size: .75rem;
+    font-weight: 500;
+    line-height: 1;
+    padding: .5rem .7rem;
+    border-radius: .45rem;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--btn-color);
+    cursor: pointer;
+    transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
+    user-select: none;
+}
+
+.flipbook-controls .btn.ghost {
+    --btn-bg: #1e293b;
+    --btn-color: #e2e8f0;
+    --btn-border: #334155;
+}
+
+/* Outline variant no longer used, keep neutral */
+.flipbook-controls .btn.outline {
+    --btn-bg: #0f172a;
+    --btn-color: #e2e8f0;
+    --btn-border: #334155;
+}
+
+.flipbook-controls .btn:not(:disabled):hover {
+    background: #42536a;
+}
+
+.flipbook-controls .btn:not(:disabled):active {
+    transform: translateY(1px);
+}
+
+.flipbook-controls .btn:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+.flipbook-controls .btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+/* Slider */
+/* Slider */
+.flipbook-controls .slider-wrapper {
+    width: 160px;
+    position: relative;
+    display: flex;
+}
+
+.flipbook-controls .zoom-slider {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.flipbook-controls .zoom-slider:focus {
+    outline: none;
+}
+
+.flipbook-controls .zoom-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 6px;
+    background: #334155;
+}
+
+.flipbook-controls .zoom-slider::-moz-range-track {
+    height: 6px;
+    border-radius: 6px;
+    background: #334155;
+}
+.flipbook-controls .zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: #64748b;
+    border: 1px solid #94a3b8;
+    box-shadow: none;
+    margin-top: -5px;
+    transition: background .15s, transform .15s;
+}
+
+.flipbook-controls .zoom-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.08);
+}
+
+.flipbook-controls .zoom-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: #64748b;
+    border: 1px solid #94a3b8;
+    box-shadow: none;
+    transition: background .15s, transform .15s;
+}
+
+.flipbook-controls .zoom-slider:disabled::-webkit-slider-runnable-track {
+    background: #1f2937;
+}
+
+.flipbook-controls .zoom-slider:disabled::-webkit-slider-thumb {
+    background: #334155;
+    border-color: #334155;
+}
+
+/* Badges */
+/* Badges / indicators */
+.flipbook-controls .badge,
+.flipbook-controls .page-indicator,
+.flipbook-controls .zoom-label {
+    font-size: .7rem;
+    letter-spacing: .5px;
+    padding: .35rem .6rem;
+    border-radius: .35rem;
+    font-weight: 500;
+    background: #0f172a;
+    color: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    border: 1px solid #1e293b;
+}
+
+
+/* Page badge variation */
+.flipbook-controls .badge.page {
+    background: #1e293b;
+}
+
+.flipbook-viewport {
+    position: relative;
+    margin: 0 auto;
+    background: #0f172a;
+    box-shadow: 0 0 0 1px #1e293b inset;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.flipbook-viewport::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.flipbook-viewport::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.flipbook-viewport::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 8px;
+    border: 2px solid #f1f5f9;
+}
+
+.flipbook-viewport:hover::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+}
+
+.pan-overlay {
+    position: absolute;
+    inset: 0;
+    /* Capa transparente que evita interacción accidental con el flip al hacer pan */
+    background: transparent;
+    z-index: 5;
+}
+
+.flipbook-controls .page-indicator {
+    margin: 0 .35rem;
+}
+
+/* Rendering indicator */
+.render-indicator {
+    font-size: .65rem;
+    color: #94a3b8;
+}
+
+/* Dark theme utility */
+.dark-theme * {
+    scrollbar-color: #334155 transparent;
+}
+
+.flipbook-viewport.panning {
+    cursor: grabbing !important;
+}
+
+/* Icon (Lucide inline) */
+.flipbook-controls .btn .icon, .flipbook-controls .zoom-label .icon {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    display: block;
+}
+
+.flipbook-controls .btn .icon { pointer-events: none; }
