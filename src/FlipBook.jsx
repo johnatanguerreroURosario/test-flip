@@ -253,12 +253,14 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
                         maxWidth={2000}
                         maxHeight={pageHeight}
                         drawShadow
-                        showCover={false}
+                        showCover={true}
                         usePortrait={false}
                         mobileScrollSupport
+                        showPageCorners={false}
                         ref={bookRef}
                         className="flipbook"
                         useMouseEvents={zoom <=1}
+                        flippingTime={300}
                         style={{ transition: 'width .2s,height .2s' }}
                         key={`zoom-${zoom.toFixed(2)}-base-${effectiveBaseW}x${effectiveBaseH}`}
                         onFlip={handleFlip}

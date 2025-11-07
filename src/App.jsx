@@ -30,7 +30,7 @@ function App() {
         Click on the Vite and React logos to learn more
       </p>
       <div style={{ background:'#f0f2f5'}}>
-        <FlipBook src="/src/assets/fp.pdf" width={1000} height={700} />
+        <FlipBook src="/src/assets/link.pdf" width={1000} height={700} />
       </div>
     </>
   )
