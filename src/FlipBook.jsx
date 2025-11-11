@@ -10,9 +10,207 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     import.meta.url
 ).toString();
 
+// Componente de página individual que usa un iframe o embed para renderizar el PDF nativamente
+function PDFPage({ pdfDoc, pageNum, viewport }) {
+    const containerRef = useRef(null);
+    const canvasRef = useRef(null);
+    const textLayerRef = useRef(null);
+    const annotationLayerRef = useRef(null);
+    const [scale, setScale] = useState(1);
+
+    // Recalcular escala cuando cambia el tamaño del contenedor o el viewport
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container || !viewport) return;
+
+        const updateScale = () => {
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            if (containerWidth > 0 && containerHeight > 0) {
+                const scaleX = containerWidth / viewport.width;
+                const scaleY = containerHeight / viewport.height;
+                const actualScale = Math.min(scaleX, scaleY);
+                setScale(actualScale);
+            }
+        };
+
+        updateScale();
+
+        const resizeObserver = new ResizeObserver(updateScale);
+        resizeObserver.observe(container);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, [viewport]);
+
+    useEffect(() => {
+        if (!pdfDoc || !pageNum) return;
+        
+        let cancelled = false;
+        let renderTask = null;
+        
+        const renderPage = async () => {
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                if (cancelled) return;
+
+                const canvas = canvasRef.current;
+                const textLayerDiv = textLayerRef.current;
+                const annotationLayerDiv = annotationLayerRef.current;
+                
+                if (!canvas || !textLayerDiv || !annotationLayerDiv) return;
+                
+                const context = canvas.getContext('2d', { willReadFrequently: false });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                // Renderizar el canvas
+                renderTask = page.render({
+                    canvasContext: context,
+                    viewport,
+                });
+                
+                await renderTask.promise;
+                if (cancelled) return;
+                
+                // Renderizar capa de texto (para selección) - actualmente no implementada
+                // const textContent = await page.getTextContent();
+                
+                textLayerDiv.innerHTML = '';
+                
+                // Renderizar anotaciones (enlaces nativos del PDF)
+                const annotations = await page.getAnnotations();
+                if (cancelled) return;
+                
+                annotationLayerDiv.innerHTML = '';
+                
+                // Crear enlaces desde las anotaciones nativas del PDF
+                for (const annotation of annotations) {
+                    if (annotation.subtype === 'Link') {
+                        const rect = pdfjsLib.Util.normalizeRect(
+                            viewport.convertToViewportRectangle(annotation.rect)
+                        );
+                        
+                        const linkElement = document.createElement('a');
+                        linkElement.style.position = 'absolute';
+                        linkElement.style.left = Math.min(rect[0], rect[2]) + 'px';
+                        linkElement.style.top = Math.min(rect[1], rect[3]) + 'px';
+                        linkElement.style.width = Math.abs(rect[2] - rect[0]) + 'px';
+                        linkElement.style.height = Math.abs(rect[3] - rect[1]) + 'px';
+                        
+                        // Manejar diferentes tipos de enlaces
+                        if (annotation.url) {
+                            // Enlace externo
+                            linkElement.href = annotation.url;
+                            linkElement.target = '_blank';
+                            linkElement.rel = 'noopener noreferrer';
+                            linkElement.title = annotation.url;
+                        } else if (annotation.dest) {
+                            // Enlace interno (a otra página)
+                            linkElement.href = '#';
+                            linkElement.onclick = (e) => {
+                                e.preventDefault();
+                                // Aquí podrías implementar navegación interna
+                                console.log('Internal link to:', annotation.dest);
+                            };
+                        } else if (annotation.action) {
+                            // Acciones especiales
+                            linkElement.href = '#';
+                            linkElement.onclick = (e) => {
+                                e.preventDefault();
+                                console.log('Action:', annotation.action);
+                            };
+                        }
+                        
+                        linkElement.className = 'pdf-link-native';
+                        annotationLayerDiv.appendChild(linkElement);
+                    }
+                }
+            } catch (error) {
+                if (!cancelled && error.name !== 'RenderingCancelledException') {
+                    console.error('Error rendering page:', error);
+                }
+            }
+        };
+        
+        renderPage();
+        
+        return () => {
+            cancelled = true;
+            if (renderTask) {
+                renderTask.cancel();
+            }
+        };
+    }, [pdfDoc, pageNum, viewport]);
+    
+    if (!pdfDoc || !pageNum) {
+        return <div className="blank-page" />;
+    }
+    
+    return (
+        <div 
+            ref={containerRef}
+            className="pdf-page-container" 
+            style={{ 
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+        >
+            <div style={{
+                position: 'relative',
+                width: `${viewport.width * scale}px`,
+                height: `${viewport.height * scale}px`,
+            }}>
+                <canvas 
+                    ref={canvasRef}
+                    style={{
+                        display: 'block',
+                        width: '100%',
+                        height: '100%',
+                    }}
+                />
+                <div 
+                    ref={textLayerRef}
+                    className="textLayer"
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: `${viewport.width}px`,
+                        height: `${viewport.height}px`,
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        pointerEvents: 'none',
+                    }}
+                />
+                <div 
+                    ref={annotationLayerRef}
+                    className="annotationLayer"
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: `${viewport.width}px`,
+                        height: `${viewport.height}px`,
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        zIndex: 10,
+                    }}
+                />
+            </div>
+        </div>
+    );
+}
+
 export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, height = 700, baseScale = 1.3, minZoom = 0.6, maxZoom = 2.5, responsive = true }) {
     const [pdfDoc, setPdfDoc] = useState(null);
-    const [pages, setPages] = useState([]); // {dataUrl,w,h}
+    const [pages, setPages] = useState([]); // {pageNum, viewport}
     const [loading, setLoading] = useState(true);
     const [rendering, setRendering] = useState(false);
     const [error, setError] = useState(null);
@@ -81,12 +279,10 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
                 if (token !== renderTokenRef.current) return;
                 const page = await doc.getPage(i);
                 const viewport = page.getViewport({ scale: baseScale * scaleMultiplier * pixelScale });
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
-                await page.render({ canvasContext: context, viewport, enableWebGL: true }).promise;
-                rendered.push({ dataUrl: canvas.toDataURL('image/png'), w: viewport.width, h: viewport.height });
+                rendered.push({ 
+                    pageNum: i,
+                    viewport
+                });
             }
             if (token === renderTokenRef.current) {
                 setPages(rendered);
@@ -162,7 +358,10 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
             try {
                 const page = api.getCurrentPageIndex?.(); // índice base 0
                 if (typeof page === 'number') setCurrentPage(page + 1);
-            } catch (_) { }
+            } catch (e) {
+                // ignorar errores
+                console.error(e);
+             }
         }
     }, [zoom, pages.length]);
 
@@ -265,16 +464,13 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
                         key={`zoom-${zoom.toFixed(2)}-base-${effectiveBaseW}x${effectiveBaseH}`}
                         onFlip={handleFlip}
                     >
-                        {evenPages.map((page, idx) => (
-                            <div className="page" key={idx} data-density={page ? 'hard' : 'soft'}>
-                                {page ? (
-                                    <img
-                                        src={page.dataUrl}
-                                        alt={`Página ${idx + 1}`}
-                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                        draggable={false}
-                                    />
-                                ) : <div className="blank-page" />}
+                        {evenPages.map((pageData, idx) => (
+                            <div className="page" key={idx} data-density={pageData ? 'hard' : 'soft'}>
+                                <PDFPage 
+                                    pdfDoc={pdfDoc} 
+                                    pageNum={pageData?.pageNum} 
+                                    viewport={pageData?.viewport} 
+                                />
                             </div>
                         ))}
                     </HTMLFlipBook>
