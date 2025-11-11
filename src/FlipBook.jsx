@@ -11,7 +11,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 // Componente de página individual que usa un iframe o embed para renderizar el PDF nativamente
-function PDFPage({ pdfDoc, pageNum, viewport }) {
+function PDFPage({ pdfDoc, pageNum, viewport, onNavigate }) {
     const containerRef = useRef(null);
     const canvasRef = useRef(null);
     const textLayerRef = useRef(null);
@@ -108,20 +108,80 @@ function PDFPage({ pdfDoc, pageNum, viewport }) {
                             linkElement.rel = 'noopener noreferrer';
                             linkElement.title = annotation.url;
                         } else if (annotation.dest) {
-                            // Enlace interno (a otra página)
+                            // Enlace interno (a otra página o destino nombrado)
                             linkElement.href = '#';
-                            linkElement.onclick = (e) => {
+                            linkElement.onclick = async (e) => {
                                 e.preventDefault();
-                                // Aquí podrías implementar navegación interna
-                                console.log('Internal link to:', annotation.dest);
+                                try {
+                                    let destArray = annotation.dest;
+                                    
+                                    // Si dest es una cadena (nombre de destino), resolverla
+                                    if (typeof destArray === 'string') {
+                                        destArray = await pdfDoc.getDestination(destArray);
+                                    }
+                                    
+                                    if (destArray && Array.isArray(destArray)) {
+                                        // destArray[0] contiene la referencia a la página
+                                        const destRef = destArray[0];
+                                        const pageIndex = await pdfDoc.getPageIndex(destRef);
+                                        const targetPage = pageIndex + 1; // Convertir a 1-based
+                                        
+                                        // Extraer parámetros de zoom si existen
+                                        let zoomValue = null;
+                                        if (destArray.length > 1 && destArray[1]?.name) {
+                                            // destArray[1] puede contener el tipo de vista (XYZ, Fit, FitH, etc.)
+                                            // destArray[4] típicamente contiene el zoom para XYZ
+                                            if (destArray[1].name === 'XYZ' && destArray[4]) {
+                                                zoomValue = destArray[4];
+                                            }
+                                        }
+                                        
+                                        if (onNavigate) {
+                                            onNavigate({ page: targetPage, zoom: zoomValue });
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error('Error navigating to destination:', error);
+                                }
                             };
+                            linkElement.title = `Ir a destino interno`;
                         } else if (annotation.action) {
-                            // Acciones especiales
+                            // Acciones especiales (GoTo, URI, etc.)
                             linkElement.href = '#';
-                            linkElement.onclick = (e) => {
+                            linkElement.onclick = async (e) => {
                                 e.preventDefault();
-                                console.log('Action:', annotation.action);
+                                
+                                // Manejar acción GoTo
+                                if (annotation.action === 'GoTo' && annotation.dest) {
+                                    try {
+                                        let destArray = annotation.dest;
+                                        
+                                        if (typeof destArray === 'string') {
+                                            destArray = await pdfDoc.getDestination(destArray);
+                                        }
+                                        
+                                        if (destArray && Array.isArray(destArray)) {
+                                            const destRef = destArray[0];
+                                            const pageIndex = await pdfDoc.getPageIndex(destRef);
+                                            const targetPage = pageIndex + 1;
+                                            
+                                            let zoomValue = null;
+                                            if (destArray.length > 1 && destArray[1]?.name === 'XYZ' && destArray[4]) {
+                                                zoomValue = destArray[4];
+                                            }
+                                            
+                                            if (onNavigate) {
+                                                onNavigate({ page: targetPage, zoom: zoomValue });
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.error('Error with GoTo action:', error);
+                                    }
+                                } else {
+                                    console.log('Action not implemented:', annotation.action);
+                                }
                             };
+                            linkElement.title = `Acción: ${annotation.action}`;
                         }
                         
                         linkElement.className = 'pdf-link-native';
@@ -143,7 +203,7 @@ function PDFPage({ pdfDoc, pageNum, viewport }) {
                 renderTask.cancel();
             }
         };
-    }, [pdfDoc, pageNum, viewport]);
+    }, [pdfDoc, pageNum, viewport, onNavigate]);
     
     if (!pdfDoc || !pageNum) {
         return <div className="blank-page" />;
@@ -337,6 +397,28 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
         setCurrentPage(leftIndex + 1);
     }, []);
 
+    // handler para navegación desde enlaces internos del PDF
+    const handleNavigate = useCallback(({ page, zoom: linkZoom }) => {
+        if (!bookRef.current || !pdfDoc) return;
+        
+        const api = bookRef.current.pageFlip();
+        if (!api) return;
+        
+        try {
+            // Navegar a la página (convertir de 1-based a 0-based para el índice)
+            const pageIndex = Math.max(0, Math.min(page - 1, pdfDoc.numPages - 1));
+            api.flip(pageIndex);
+            
+            // Aplicar zoom si se especificó (linkZoom suele ser un valor como 1.5 para 150%)
+            if (linkZoom && typeof linkZoom === 'number') {
+                const targetZoom = Math.max(minZoom, Math.min(linkZoom, maxZoom));
+                setZoom(targetZoom);
+            }
+        } catch (error) {
+            console.error('Error navigating to page:', error);
+        }
+    }, [pdfDoc, minZoom, maxZoom]);
+
     const totalPages = pdfDoc?.numPages || pages.length || 0;
     const evenPages = pages.length % 2 === 0 ? pages : [...pages, null];
 
@@ -469,7 +551,8 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
                                 <PDFPage 
                                     pdfDoc={pdfDoc} 
                                     pageNum={pageData?.pageNum} 
-                                    viewport={pageData?.viewport} 
+                                    viewport={pageData?.viewport}
+                                    onNavigate={handleNavigate}
                                 />
                             </div>
                         ))}
