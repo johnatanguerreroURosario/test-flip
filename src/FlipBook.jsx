@@ -1,78 +1,16 @@
 import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import HTMLFlipBook from 'react-pageflip';
-import * as pdfjsLib from 'pdfjs-dist';
-import 'pdfjs-dist/web/pdf_viewer.css';
+import { usePdfiumEngine } from "@embedpdf/engines/react";
 import './FlipBook.css';
 
-// Set worker (Vite + ESM friendly)
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url
-).toString();
-
-// Componente de página individual
-function PDFPage({ pdfDoc, pageNum, baseScale = 1.3, onNavigate, renderScale = 1, isVisible = false }) {
-    const containerRef = useRef(null);
-    const canvasRef = useRef(null);
-    const textLayerRef = useRef(null);
-    const annotationLayerRef = useRef(null);
-    const [scale, setScale] = useState(1);
+// Componente de página individual usando @embedpdf/engines
+function PDFPage({ engine, document, pageNum, renderScale = 1, isVisible = false }) {
+    const imgRef = useRef(null);
+    const [imageUrl, setImageUrl] = useState(null);
     const lastRenderedScaleRef = useRef(null);
-    const [viewport, setViewport] = useState(null);
-
-    // Calcular viewport una sola vez
-    useEffect(() => {
-        if (!pdfDoc || !pageNum) return;
-        
-        let cancelled = false;
-        
-        const loadViewport = async () => {
-            try {
-                const page = await pdfDoc.getPage(pageNum);
-                if (cancelled) return;
-                const vp = page.getViewport({ scale: baseScale });
-                setViewport(vp);
-            } catch (error) {
-                console.error('Error loading viewport:', error);
-            }
-        };
-        
-        loadViewport();
-        
-        return () => {
-            cancelled = true;
-        };
-    }, [pdfDoc, pageNum, baseScale]);
-
-    // Recalcular escala cuando cambia el tamaño del contenedor
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container || !viewport) return;
-
-        const updateScale = () => {
-            const containerWidth = container.clientWidth;
-            const containerHeight = container.clientHeight;
-            
-            if (containerWidth > 0 && containerHeight > 0) {
-                const scaleX = containerWidth / viewport.width;
-                const scaleY = containerHeight / viewport.height;
-                const actualScale = Math.min(scaleX, scaleY);
-                setScale(actualScale);
-            }
-        };
-
-        updateScale();
-
-        const resizeObserver = new ResizeObserver(updateScale);
-        resizeObserver.observe(container);
-
-        return () => {
-            resizeObserver.disconnect();
-        };
-    }, [viewport]);
 
     useEffect(() => {
-        if (!pdfDoc || !pageNum || !viewport) return;
+        if (!engine || !document || !pageNum) return;
         
         // Renderizar siempre la primera vez
         const isFirstRender = lastRenderedScaleRef.current === null;
@@ -86,155 +24,44 @@ function PDFPage({ pdfDoc, pageNum, baseScale = 1.3, onNavigate, renderScale = 1
         }
         
         let cancelled = false;
-        let renderTask = null;
         
         const renderPage = async () => {
             try {
-                const page = await pdfDoc.getPage(pageNum);
-                if (cancelled) return;
+                const page = document.pages[pageNum - 1]; // pages es 0-based
+                if (!page || cancelled) return;
 
-                const canvas = canvasRef.current;
-                const textLayerDiv = textLayerRef.current;
-                const annotationLayerDiv = annotationLayerRef.current;
-                
-                if (!canvas || !textLayerDiv || !annotationLayerDiv) return;
-                
-                // Usar devicePixelRatio para HiDPI
+                // Obtener DPR para pantallas de alta resolución
                 const dpr = window.devicePixelRatio || 1;
-                const scaledViewport = page.getViewport({ 
-                    scale: viewport.scale * renderScale * dpr 
-                });
                 
-                const context = canvas.getContext('2d', { willReadFrequently: false });
-                canvas.width = scaledViewport.width;
-                canvas.height = scaledViewport.height;
-                
-                // Renderizar el canvas con alta resolución
-                renderTask = page.render({
-                    canvasContext: context,
-                    viewport: scaledViewport,
-                });
-                
-                await renderTask.promise;
+                // Usar un factor de escala muy alto para máxima nitidez
+                // Factor 2.0 como base + renderScale del usuario + dpr
+                const highQualityScale = 2.0 * renderScale * dpr;
+
+                console.log(`Rendering page ${pageNum} at scale: ${highQualityScale} (renderScale: ${renderScale}, dpr: ${dpr})`);
+
+                // Renderizar con alta calidad usando dpr y scaleFactor
+                const imageBlob = await engine
+                    .renderPage(document, page, {
+                        scaleFactor: highQualityScale, // Máxima calidad
+                        dpr: 1, // Ya incluido en scaleFactor
+                        withAnnotations: true,
+                        imageType: 'image/png', // PNG para mejor calidad
+                    })
+                    .toPromise();
+
                 if (cancelled) return;
                 
-                lastRenderedScaleRef.current = renderScale;
-                
-                // Renderizar capa de texto (para selección) - actualmente no implementada
-                // const textContent = await page.getTextContent();
-                
-                textLayerDiv.innerHTML = '';
-                
-                // Renderizar anotaciones (enlaces nativos del PDF)
-                const annotations = await page.getAnnotations();
-                if (cancelled) return;
-                
-                annotationLayerDiv.innerHTML = '';
-                
-                // Crear enlaces desde las anotaciones nativas del PDF
-                for (const annotation of annotations) {
-                    if (annotation.subtype === 'Link') {
-                        const rect = pdfjsLib.Util.normalizeRect(
-                            viewport.convertToViewportRectangle(annotation.rect)
-                        );
-                        
-                        const linkElement = document.createElement('a');
-                        linkElement.style.position = 'absolute';
-                        linkElement.style.left = Math.min(rect[0], rect[2]) + 'px';
-                        linkElement.style.top = Math.min(rect[1], rect[3]) + 'px';
-                        linkElement.style.width = Math.abs(rect[2] - rect[0]) + 'px';
-                        linkElement.style.height = Math.abs(rect[3] - rect[1]) + 'px';
-                        
-                        // Manejar diferentes tipos de enlaces
-                        if (annotation.url) {
-                            // Enlace externo
-                            linkElement.href = annotation.url;
-                            linkElement.target = '_blank';
-                            linkElement.rel = 'noopener noreferrer';
-                            linkElement.title = annotation.url;
-                        } else if (annotation.dest) {
-                            // Enlace interno (a otra página o destino nombrado)
-                            linkElement.href = '#';
-                            linkElement.onclick = async (e) => {
-                                e.preventDefault();
-                                try {
-                                    let destArray = annotation.dest;
-                                    
-                                    // Si dest es una cadena (nombre de destino), resolverla
-                                    if (typeof destArray === 'string') {
-                                        destArray = await pdfDoc.getDestination(destArray);
-                                    }
-                                    
-                                    if (destArray && Array.isArray(destArray)) {
-                                        // destArray[0] contiene la referencia a la página
-                                        const destRef = destArray[0];
-                                        const pageIndex = await pdfDoc.getPageIndex(destRef);
-                                        const targetPage = pageIndex + 1; // Convertir a 1-based
-                                        
-                                        // Extraer parámetros de zoom si existen
-                                        let zoomValue = null;
-                                        if (destArray.length > 1 && destArray[1]?.name) {
-                                            // destArray[1] puede contener el tipo de vista (XYZ, Fit, FitH, etc.)
-                                            // destArray[4] típicamente contiene el zoom para XYZ
-                                            if (destArray[1].name === 'XYZ' && destArray[4]) {
-                                                zoomValue = destArray[4];
-                                            }
-                                        }
-                                        
-                                        if (onNavigate) {
-                                            onNavigate({ page: targetPage, zoom: zoomValue });
-                                        }
-                                    }
-                                } catch (error) {
-                                    console.error('Error navigating to destination:', error);
-                                }
-                            };
-                            linkElement.title = `Ir a destino interno`;
-                        } else if (annotation.action) {
-                            // Acciones especiales (GoTo, URI, etc.)
-                            linkElement.href = '#';
-                            linkElement.onclick = async (e) => {
-                                e.preventDefault();
-                                
-                                // Manejar acción GoTo
-                                if (annotation.action === 'GoTo' && annotation.dest) {
-                                    try {
-                                        let destArray = annotation.dest;
-                                        
-                                        if (typeof destArray === 'string') {
-                                            destArray = await pdfDoc.getDestination(destArray);
-                                        }
-                                        
-                                        if (destArray && Array.isArray(destArray)) {
-                                            const destRef = destArray[0];
-                                            const pageIndex = await pdfDoc.getPageIndex(destRef);
-                                            const targetPage = pageIndex + 1;
-                                            
-                                            let zoomValue = null;
-                                            if (destArray.length > 1 && destArray[1]?.name === 'XYZ' && destArray[4]) {
-                                                zoomValue = destArray[4];
-                                            }
-                                            
-                                            if (onNavigate) {
-                                                onNavigate({ page: targetPage, zoom: zoomValue });
-                                            }
-                                        }
-                                    } catch (error) {
-                                        console.error('Error with GoTo action:', error);
-                                    }
-                                } else {
-                                    console.log('Action not implemented:', annotation.action);
-                                }
-                            };
-                            linkElement.title = `Acción: ${annotation.action}`;
-                        }
-                        
-                        linkElement.className = 'pdf-link-native';
-                        annotationLayerDiv.appendChild(linkElement);
-                    }
+                // Liberar URL anterior
+                if (imageUrl) {
+                    URL.revokeObjectURL(imageUrl);
                 }
+
+                // Crear nueva URL para la imagen
+                const newImageUrl = URL.createObjectURL(imageBlob);
+                setImageUrl(newImageUrl);
+                lastRenderedScaleRef.current = renderScale;
             } catch (error) {
-                if (!cancelled && error.name !== 'RenderingCancelledException') {
+                if (!cancelled) {
                     console.error('Error rendering page:', error);
                 }
             }
@@ -244,19 +71,24 @@ function PDFPage({ pdfDoc, pageNum, baseScale = 1.3, onNavigate, renderScale = 1
         
         return () => {
             cancelled = true;
-            if (renderTask) {
-                renderTask.cancel();
+        };
+    }, [engine, document, pageNum, renderScale, isVisible, imageUrl]);
+    
+    // Cleanup: liberar URLs cuando se desmonte
+    useEffect(() => {
+        return () => {
+            if (imageUrl) {
+                URL.revokeObjectURL(imageUrl);
             }
         };
-    }, [pdfDoc, pageNum, viewport, onNavigate, isVisible, renderScale]);
+    }, [imageUrl]);
     
-    if (!pdfDoc || !pageNum) {
+    if (!document || !pageNum) {
         return <div className="blank-page" />;
     }
     
     return (
         <div 
-            ref={containerRef}
             className="pdf-page-container" 
             style={{ 
                 position: 'relative',
@@ -267,48 +99,23 @@ function PDFPage({ pdfDoc, pageNum, baseScale = 1.3, onNavigate, renderScale = 1
                 justifyContent: 'center',
             }}
         >
-            <div style={{
-                position: 'relative',
-                width: viewport ? `${viewport.width * scale}px` : '100%',
-                height: viewport ? `${viewport.height * scale}px` : '100%',
-            }}>
-                <canvas 
-                    ref={canvasRef}
+            {imageUrl ? (
+                <img
+                    ref={imgRef}
+                    src={imageUrl}
+                    alt={`PDF Page ${pageNum}`}
                     style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
                         display: 'block',
-                        width: '100%',
-                        height: '100%',
+                        imageRendering: 'crisp-edges', // Evitar suavizado/blur
+                        WebkitFontSmoothing: 'antialiased',
+                        objectFit: 'contain',
                     }}
                 />
-                <div 
-                    ref={textLayerRef}
-                    className="textLayer"
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: viewport ? `${viewport.width}px` : '100%',
-                        height: viewport ? `${viewport.height}px` : '100%',
-                        transform: `scale(${scale})`,
-                        transformOrigin: 'top left',
-                        pointerEvents: 'none',
-                    }}
-                />
-                <div 
-                    ref={annotationLayerRef}
-                    className="annotationLayer"
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: viewport ? `${viewport.width}px` : '100%',
-                        height: viewport ? `${viewport.height}px` : '100%',
-                        transform: `scale(${scale})`,
-                        transformOrigin: 'top left',
-                        zIndex: 10,
-                    }}
-                />
-            </div>
+            ) : (
+                <div style={{ padding: '20px', color: '#666' }}>Cargando...</div>
+            )}
         </div>
     );
 }
@@ -320,12 +127,15 @@ const MemoizedPDFPage = memo(PDFPage, (prevProps, nextProps) => {
         prevProps.pageNum === nextProps.pageNum &&
         prevProps.renderScale === nextProps.renderScale &&
         prevProps.isVisible === nextProps.isVisible &&
-        prevProps.pdfDoc === nextProps.pdfDoc
+        prevProps.document === nextProps.document &&
+        prevProps.engine === nextProps.engine
     );
 });
 
-export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, height = 700, baseScale = 1.3, minZoom = 0.6, maxZoom = 2.5, responsive = true, zoomDuration = 500, zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5] }) {
-    const [pdfDoc, setPdfDoc] = useState(null);
+export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700, minZoom = 0.6, maxZoom = 2.5, responsive = true, zoomDuration = 500, zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5] }) {
+    const { engine, isLoading: engineLoading, error: engineError } = usePdfiumEngine();
+    const [isEngineReady, setIsEngineReady] = useState(false);
+    const [pdfDocument, setPdfDocument] = useState(null);
     const [pages, setPages] = useState([]); // {pageNum}
     const [loading, setLoading] = useState(true);
     const [rendering, setRendering] = useState(false);
@@ -376,19 +186,54 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
         )
     };
 
+    // Inicializar el engine cuando esté disponible
+    useEffect(() => {
+        if (engine && !isEngineReady) {
+            engine
+                .initialize()
+                .toPromise()
+                .then(() => setIsEngineReady(true))
+                .catch((err) => {
+                    console.error('Error initializing engine:', err);
+                    setError('No se pudo inicializar el motor PDF');
+                });
+        }
+    }, [engine, isEngineReady]);
+
+    // Cargar el documento PDF
     const loadPdf = useCallback(async () => {
+        if (!engine || !isEngineReady) return;
+        
         setLoading(true);
         setError(null);
         try {
-            const doc = await pdfjsLib.getDocument(src).promise;
-            setPdfDoc(doc);
+            // Convertir ruta relativa a URL absoluta
+            let pdfUrl = src;
+            if (!src.startsWith('http')) {
+                // Para rutas locales, usar la URL base actual
+                const baseUrl = window.location.origin;
+                // Limpiar la ruta (eliminar /src/ si existe)
+                const cleanPath = src.replace(/^\/src\/assets\//, '/');
+                pdfUrl = `${baseUrl}${cleanPath}`;
+            }
+            
+            console.log('Loading PDF from:', pdfUrl);
+            
+            const fileUrl = {
+                id: "flipbook-doc",
+                url: pdfUrl,
+            };
+            
+            const doc = await engine.openDocumentUrl(fileUrl).toPromise();
+            setPdfDocument(doc);
+            console.log(`Successfully opened document with ${doc.pageCount} pages.`);
         } catch (e) {
-            console.error(e);
-            setError('No se pudo cargar el PDF');
+            console.error('Error loading PDF:', e);
+            setError(`No se pudo cargar el PDF: ${e.message || 'Error desconocido'}`);
         } finally {
             setLoading(false);
         }
-    }, [src]);
+    }, [engine, isEngineReady, src]);
 
     // Ease in/out function (como en Vue)
     const easeInOut = useCallback((x) => {
@@ -496,12 +341,11 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
         setRendering(true);
         try {
             const rendered = [];
-            // Solo crear estructura básica, no calcular viewports aún
-            for (let i = 1; i <= doc.numPages; i++) {
+            // Solo crear estructura básica de páginas
+            for (let i = 1; i <= doc.pageCount; i++) {
                 if (token !== renderTokenRef.current) return;
                 rendered.push({ 
                     pageNum: i,
-                    viewport: null // Se calculará bajo demanda en PDFPage
                 });
             }
             if (token === renderTokenRef.current) {
@@ -539,14 +383,18 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
         };
     }, [responsive, width, height]);
 
-    // cargar
-    useEffect(() => { loadPdf(); }, [loadPdf]);
+    // cargar PDF cuando el engine esté listo
+    useEffect(() => { 
+        if (isEngineReady) {
+            loadPdf(); 
+        }
+    }, [isEngineReady, loadPdf]);
 
     // renderizar páginas solo una vez al cargar
     useEffect(() => {
-        if (!pdfDoc) return;
-        renderAllPages(pdfDoc);
-    }, [pdfDoc, renderAllPages]);
+        if (!pdfDocument) return;
+        renderAllPages(pdfDocument);
+    }, [pdfDocument, renderAllPages]);
 
     // handler directo de flip
     const handleFlip = useCallback((e) => {
@@ -555,27 +403,23 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
         setCurrentPage(leftIndex + 1);
     }, []);
 
-    // handler para navegación desde enlaces internos del PDF
-    const handleNavigate = useCallback(({ page, zoom: linkZoom }) => {
-        if (!bookRef.current || !pdfDoc) return;
-        
-        const api = bookRef.current.pageFlip();
-        if (!api) return;
-        
-        try {
-            // Navegar a la página (convertir de 1-based a 0-based para el índice)
-            const pageIndex = Math.max(0, Math.min(page - 1, pdfDoc.numPages - 1));
-            api.flip(pageIndex);
-            
-            // Aplicar zoom si se especificó
-            if (linkZoom && typeof linkZoom === 'number') {
-                const targetZoom = Math.max(minZoom, Math.min(linkZoom, maxZoom));
-                zoomTo(targetZoom);
-            }
-        } catch (error) {
-            console.error('Error navigating to page:', error);
-        }
-    }, [pdfDoc, minZoom, maxZoom, zoomTo]);
+    // TODO: handler para navegación desde enlaces internos del PDF
+    // Esto requeriría soporte adicional de @embedpdf/engines para extraer anotaciones
+    // const handleNavigate = useCallback(({ page, zoom: linkZoom }) => {
+    //     if (!bookRef.current || !pdfDocument) return;
+    //     const api = bookRef.current.pageFlip();
+    //     if (!api) return;
+    //     try {
+    //         const pageIndex = Math.max(0, Math.min(page - 1, pdfDocument.pageCount - 1));
+    //         api.flip(pageIndex);
+    //         if (linkZoom && typeof linkZoom === 'number') {
+    //             const targetZoom = Math.max(minZoom, Math.min(linkZoom, maxZoom));
+    //             zoomTo(targetZoom);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error navigating to page:', error);
+    //     }
+    // }, [pdfDocument, minZoom, maxZoom, zoomTo]);
 
     // Aplicar scroll controlado
     useEffect(() => {
@@ -586,23 +430,23 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
         viewport.scrollTop = scrollTop;
     }, [scrollLeft, scrollTop]);
 
-    const totalPages = pdfDoc?.numPages || pages.length || 0;
+    const totalPages = pdfDocument?.pageCount || pages.length || 0;
     const startPageIndex = totalPages > 0 ? Math.max(0, Math.min(currentPage - 1, totalPages - 1)) : 0;
     const evenPages = pages.length % 2 === 0 ? pages : [...pages, null];
     // normalizar indice de página (evitar placeholder de página en blanco)
     const clampPage = useCallback((p) => {
-        if (!pdfDoc) return p;
-        return Math.min(p, pdfDoc.numPages);
-    }, [pdfDoc]);
+        if (!pdfDocument) return p;
+        return Math.min(p, pdfDocument.pageCount);
+    }, [pdfDocument]);
 
     const goPrev = () => {bookRef.current?.pageFlip().flipPrev(); };
     const goNext = () => {bookRef.current?.pageFlip().flipNext(); };
 
     // Ajusta el índice actual si se carga un documento nuevo o cambia su longitud.
     useEffect(() => {
-        if (!pdfDoc) return;
-        setCurrentPage(prev => Math.min(Math.max(prev, 1), pdfDoc.numPages));
-    }, [pdfDoc]);
+        if (!pdfDocument) return;
+        setCurrentPage(prev => Math.min(Math.max(prev, 1), pdfDocument.pageCount));
+    }, [pdfDocument]);
 
     // Mantiene la página visible tras recrear el flipbook (por ejemplo cuando cambia el zoom).
     useEffect(() => {
@@ -661,8 +505,11 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
         };
     }, [zoom]);
 
+    if (engineLoading || !isEngineReady) return <div className="flipbook-status">Inicializando motor PDF...</div>;
+    if (engineError) return <div className="flipbook-status error">Error: {engineError.message}</div>;
     if (loading) return <div className="flipbook-status">Cargando PDF...</div>;
     if (error) return <div className="flipbook-status error">{error}</div>;
+    if (!pdfDocument) return <div className="flipbook-status">Esperando documento...</div>;
 
     const effectiveBaseW = responsive ? baseViewport.w : width;
     const effectiveBaseH = responsive ? baseViewport.h : height;
@@ -737,10 +584,9 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
                             return (
                                 <div className="page" key={idx} data-density={pageData ? 'hard' : 'soft'}>
                                     <MemoizedPDFPage 
-                                        pdfDoc={pdfDoc} 
+                                        engine={engine}
+                                        document={pdfDocument}
                                         pageNum={pageData?.pageNum}
-                                        baseScale={baseScale}
-                                        onNavigate={handleNavigate}
                                         renderScale={zoom}
                                         isVisible={isVisible}
                                     />

@@ -6,7 +6,7 @@ function App() {
   return (
     <>
       <div style={{ background:'#f0f2f5'}}>
-        <FlipBook src="/src/assets/c.pdf" width={1000} height={700} />
+        <FlipBook src="/c.pdf" width={1000} height={700} />
       </div>
     </>
   )
