@@ -420,6 +420,7 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
     }, [pdfDoc, minZoom, maxZoom]);
 
     const totalPages = pdfDoc?.numPages || pages.length || 0;
+    const startPageIndex = totalPages > 0 ? Math.max(0, Math.min(currentPage - 1, totalPages - 1)) : 0;
     const evenPages = pages.length % 2 === 0 ? pages : [...pages, null];
 
     const incrementZoom = (delta) => setZoom(z => Math.min(maxZoom, Math.max(minZoom, +(z + delta).toFixed(2))));
@@ -433,19 +434,26 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
     const goPrev = () => {bookRef.current?.pageFlip().flipPrev(); };
     const goNext = () => {bookRef.current?.pageFlip().flipNext(); };
 
-    // Sincronizar página actual después de renderizaciones (ej. cambio de zoom recompone el componente)
+    // Ajusta el índice actual si se carga un documento nuevo o cambia su longitud.
     useEffect(() => {
+        if (!pdfDoc) return;
+        setCurrentPage(prev => Math.min(Math.max(prev, 1), pdfDoc.numPages));
+    }, [pdfDoc]);
+
+    // Mantiene la página visible tras recrear el flipbook (por ejemplo cuando cambia el zoom).
+    useEffect(() => {
+        if (!totalPages || pages.length === 0) return;
         const api = bookRef.current?.pageFlip?.();
-        if (api) {
-            try {
-                const page = api.getCurrentPageIndex?.(); // índice base 0
-                if (typeof page === 'number') setCurrentPage(page + 1);
-            } catch (e) {
-                // ignorar errores
-                console.error(e);
-             }
+        if (!api) return;
+        try {
+            const currentIndex = api.getCurrentPageIndex?.();
+            if (typeof currentIndex === 'number' && currentIndex !== startPageIndex) {
+                api.flip(startPageIndex);
+            }
+        } catch (e) {
+            console.error(e);
         }
-    }, [zoom, pages.length]);
+    }, [pages, startPageIndex, totalPages]);
 
     // Panning (drag to scroll) cuando zoom > 1
     useEffect(() => {
@@ -539,6 +547,7 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
                         mobileScrollSupport
                         showPageCorners={false}
                         ref={bookRef}
+                        startPage={startPageIndex}
                         className="flipbook"
                         useMouseEvents={zoom <=1}
                         flippingTime={300}
