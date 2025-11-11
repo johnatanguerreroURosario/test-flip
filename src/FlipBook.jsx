@@ -10,8 +10,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     import.meta.url
 ).toString();
 
-// Componente de página individual que usa un iframe o embed para renderizar el PDF nativamente
-function PDFPage({ pdfDoc, pageNum, baseScale = 1.3, onNavigate, cssScale = 1, renderScale = 1, isVisible = false }) {
+// Componente de página individual
+function PDFPage({ pdfDoc, pageNum, baseScale = 1.3, onNavigate, renderScale = 1, isVisible = false }) {
     const containerRef = useRef(null);
     const canvasRef = useRef(null);
     const textLayerRef = useRef(null);
@@ -271,10 +271,6 @@ function PDFPage({ pdfDoc, pageNum, baseScale = 1.3, onNavigate, cssScale = 1, r
                 position: 'relative',
                 width: viewport ? `${viewport.width * scale}px` : '100%',
                 height: viewport ? `${viewport.height * scale}px` : '100%',
-                transform: `scale(${cssScale})`,
-                transformOrigin: 'center center',
-                transition: 'transform 0.05s ease-out',
-                willChange: 'transform',
             }}>
                 <canvas 
                     ref={canvasRef}
@@ -323,28 +319,30 @@ const MemoizedPDFPage = memo(PDFPage, (prevProps, nextProps) => {
     return (
         prevProps.pageNum === nextProps.pageNum &&
         prevProps.renderScale === nextProps.renderScale &&
-        prevProps.cssScale === nextProps.cssScale &&
         prevProps.isVisible === nextProps.isVisible &&
         prevProps.pdfDoc === nextProps.pdfDoc
     );
 });
 
-export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, height = 700, baseScale = 1.3, minZoom = 0.6, maxZoom = 2.5, responsive = true }) {
+export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, height = 700, baseScale = 1.3, minZoom = 0.6, maxZoom = 2.5, responsive = true, zoomDuration = 500, zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5] }) {
     const [pdfDoc, setPdfDoc] = useState(null);
     const [pages, setPages] = useState([]); // {pageNum}
     const [loading, setLoading] = useState(true);
     const [rendering, setRendering] = useState(false);
     const [error, setError] = useState(null);
-    const [cssZoom, setCssZoom] = useState(1); // Escala visual instantánea (CSS transform)
-    const [renderZoom, setRenderZoom] = useState(1); // Escala de renderizado real (PDF.js)
+    const [zoom, setZoom] = useState(1); // Zoom actual (animado suavemente)
+    const [zoomIndex, setZoomIndex] = useState(1); // Índice en array de zooms (comienza en 100%)
+    const [zooming, setZooming] = useState(false); // Si está animando zoom
     const [currentPage, setCurrentPage] = useState(1); // 1-based
     const bookRef = useRef(null);
     const renderTokenRef = useRef(0);
     const viewportRef = useRef(null);
-    const panState = useRef({ active: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
     const containerRef = useRef(null);
+    const flipbookContainerRef = useRef(null);
     const [baseViewport, setBaseViewport] = useState({ w: width, h: height });
-    const zoomDebounceRef = useRef(null);
+    const [scrollLeft, setScrollLeft] = useState(0);
+    const [scrollTop, setScrollTop] = useState(0);
+    const zoomAnimationRef = useRef(null);
 
     // Inline Lucide icons (subset) - stroke inherits current color
     const icons = {
@@ -392,26 +390,102 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
         }
     }, [src]);
 
-    // Función para actualizar zoom con debounce
-    const handleZoomChange = useCallback((newZoom) => {
-        // Actualizar CSS zoom inmediatamente para respuesta visual instantánea
-        setCssZoom(newZoom);
-        
-        // Debounce del renderizado real
-        if (zoomDebounceRef.current) {
-            clearTimeout(zoomDebounceRef.current);
+    // Ease in/out function (como en Vue)
+    const easeInOut = useCallback((x) => {
+        if (x < 0.5) {
+            return Math.pow(x * 2, 2) / 2;
         }
-        
-        zoomDebounceRef.current = setTimeout(() => {
-            setRenderZoom(newZoom);
-        }, 150); // 150ms de debounce
+        return 0.5 + (1 - Math.pow(1 - (x - 0.5) * 2, 2)) / 2;
     }, []);
+
+    // Función de zoom animada (estilo Vue)
+    const zoomTo = useCallback((targetZoom, zoomAt = null) => {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+
+        // Calcular punto fijo de zoom
+        let fixedX, fixedY;
+        if (zoomAt) {
+            const rect = viewport.getBoundingClientRect();
+            fixedX = zoomAt.pageX - rect.left;
+            fixedY = zoomAt.pageY - rect.top;
+        } else {
+            fixedX = viewport.clientWidth / 2;
+            fixedY = viewport.clientHeight / 2;
+        }
+
+        const startZoom = zoom;
+        const endZoom = targetZoom;
+        const startX = viewport.scrollLeft;
+        const startY = viewport.scrollTop;
+        
+        // Calcular scroll final para mantener punto fijo
+        const containerFixedX = fixedX + startX;
+        const containerFixedY = fixedY + startY;
+        const endX = containerFixedX / startZoom * endZoom - fixedX;
+        const endY = containerFixedY / startZoom * endZoom - fixedY;
+
+        const t0 = Date.now();
+        setZooming(true);
+
+        const animate = () => {
+            const t = Date.now() - t0;
+            let ratio = t / zoomDuration;
+            if (ratio > 1) ratio = 1;
+            
+            const easedRatio = easeInOut(ratio);
+            const currentZoom = startZoom + (endZoom - startZoom) * easedRatio;
+            const currentX = startX + (endX - startX) * easedRatio;
+            const currentY = startY + (endY - startY) * easedRatio;
+
+            setZoom(currentZoom);
+            setScrollLeft(currentX);
+            setScrollTop(currentY);
+
+            if (ratio < 1) {
+                zoomAnimationRef.current = requestAnimationFrame(animate);
+            } else {
+                setZooming(false);
+                setZoom(endZoom);
+                setScrollLeft(endX);
+                setScrollTop(endY);
+                zoomAnimationRef.current = null;
+            }
+        };
+
+        // Cancelar animación previa
+        if (zoomAnimationRef.current) {
+            cancelAnimationFrame(zoomAnimationRef.current);
+        }
+
+        animate();
+    }, [zoom, zoomDuration, easeInOut]);
+
+    // Zoom in/out con niveles discretos
+    const zoomIn = useCallback((zoomAt = null) => {
+        if (zooming || zoomIndex >= zooms.length - 1) return;
+        const newIndex = zoomIndex + 1;
+        setZoomIndex(newIndex);
+        zoomTo(zooms[newIndex], zoomAt);
+    }, [zooming, zoomIndex, zooms, zoomTo]);
+
+    const zoomOut = useCallback((zoomAt = null) => {
+        if (zooming || zoomIndex <= 0) return;
+        const newIndex = zoomIndex - 1;
+        setZoomIndex(newIndex);
+        zoomTo(zooms[newIndex], zoomAt);
+    }, [zooming, zoomIndex, zooms, zoomTo]);
+
+    const resetZoom = useCallback(() => {
+        setZoomIndex(1); // Volver a 100%
+        zoomTo(zooms[1]);
+    }, [zooms, zoomTo]);
     
-    // Limpiar timeout al desmontar
+    // Limpiar animación al desmontar
     useEffect(() => {
         return () => {
-            if (zoomDebounceRef.current) {
-                clearTimeout(zoomDebounceRef.current);
+            if (zoomAnimationRef.current) {
+                cancelAnimationFrame(zoomAnimationRef.current);
             }
         };
     }, []);
@@ -493,22 +567,28 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
             const pageIndex = Math.max(0, Math.min(page - 1, pdfDoc.numPages - 1));
             api.flip(pageIndex);
             
-            // Aplicar zoom si se especificó (linkZoom suele ser un valor como 1.5 para 150%)
+            // Aplicar zoom si se especificó
             if (linkZoom && typeof linkZoom === 'number') {
                 const targetZoom = Math.max(minZoom, Math.min(linkZoom, maxZoom));
-                handleZoomChange(targetZoom);
+                zoomTo(targetZoom);
             }
         } catch (error) {
             console.error('Error navigating to page:', error);
         }
-    }, [pdfDoc, minZoom, maxZoom, handleZoomChange]);
+    }, [pdfDoc, minZoom, maxZoom, zoomTo]);
+
+    // Aplicar scroll controlado
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        
+        viewport.scrollLeft = scrollLeft;
+        viewport.scrollTop = scrollTop;
+    }, [scrollLeft, scrollTop]);
 
     const totalPages = pdfDoc?.numPages || pages.length || 0;
     const startPageIndex = totalPages > 0 ? Math.max(0, Math.min(currentPage - 1, totalPages - 1)) : 0;
     const evenPages = pages.length % 2 === 0 ? pages : [...pages, null];
-
-    const incrementZoom = (delta) => handleZoomChange(Math.min(maxZoom, Math.max(minZoom, +(cssZoom + delta).toFixed(2))));
-    const resetZoom = () => handleZoomChange(1);
     // normalizar indice de página (evitar placeholder de página en blanco)
     const clampPage = useCallback((p) => {
         if (!pdfDoc) return p;
@@ -539,13 +619,16 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
         }
     }, [pages, startPageIndex, totalPages]);
 
-    // Panning (drag to scroll) cuando cssZoom > 1
+    // Panning (drag to scroll) cuando zoom > 1
     useEffect(() => {
         const vp = viewportRef.current;
         if (!vp) return;
+        
+        let panState = { active: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 };
+        
         function onPointerDown(e) {
-            if (cssZoom <= 1) return; // permitir flips normales
-            panState.current = {
+            if (zoom <= 1) return; // permitir flips normales
+            panState = {
                 active: true,
                 startX: e.clientX,
                 startY: e.clientY,
@@ -556,16 +639,15 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
             e.preventDefault();
         }
         function onPointerMove(e) {
-            const st = panState.current;
-            if (!st.active) return;
-            const dx = e.clientX - st.startX;
-            const dy = e.clientY - st.startY;
-            vp.scrollLeft = st.scrollLeft - dx;
-            vp.scrollTop = st.scrollTop - dy;
+            if (!panState.active) return;
+            const dx = e.clientX - panState.startX;
+            const dy = e.clientY - panState.startY;
+            vp.scrollLeft = panState.scrollLeft - dx;
+            vp.scrollTop = panState.scrollTop - dy;
         }
         function onPointerUp() {
-            if (panState.current.active) {
-                panState.current.active = false;
+            if (panState.active) {
+                panState.active = false;
                 vp.classList.remove('panning');
             }
         }
@@ -577,23 +659,23 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
             window.removeEventListener('pointermove', onPointerMove);
             window.removeEventListener('pointerup', onPointerUp);
         };
-    }, [cssZoom]);
+    }, [zoom]);
 
     if (loading) return <div className="flipbook-status">Cargando PDF...</div>;
     if (error) return <div className="flipbook-status error">{error}</div>;
 
     const effectiveBaseW = responsive ? baseViewport.w : width;
     const effectiveBaseH = responsive ? baseViewport.h : height;
-    const spreadWidth = effectiveBaseW * cssZoom;
+    const spreadWidth = effectiveBaseW;
     const pageWidth = spreadWidth / 2;
-    const pageHeight = effectiveBaseH * cssZoom;
+    const pageHeight = effectiveBaseH;
 
     // viewport mantiene tamaño base (spread original) para crear área de paneo
     const viewportStyle = {
         width: effectiveBaseW + 'px',
         height: effectiveBaseH + 'px',
-        overflow: cssZoom > 1 ? 'auto' : 'hidden',
-        cursor: cssZoom > 1 ? (panState.current.active ? 'grabbing' : 'grab') : 'default'
+        overflow: zoom > 1 ? 'auto' : 'hidden',
+        cursor: zoom > 1 ? 'grab' : 'auto'
     };
 
     return (
@@ -605,19 +687,29 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
                     <button className="btn" onClick={goNext} disabled={currentPage >= totalPages} aria-label="Página siguiente" title="Siguiente (solo sin zoom)">{icons.chevronRight}</button>
                 </div>
                 <div className="control-group zoom-group">
-                    <button className="btn ghost" onClick={() => incrementZoom(-0.25)} disabled={rendering || cssZoom <= minZoom} aria-label="Alejar" title="Alejar">{icons.minus}</button>
+                    <button className="btn ghost" onClick={() => zoomOut()} disabled={zooming || zoomIndex <= 0} aria-label="Alejar" title="Alejar">{icons.minus}</button>
                     <div className="slider-wrapper" title="Zoom">
-                        <input className="zoom-slider" type="range" min={minZoom} max={maxZoom} step={0.25} value={cssZoom} onChange={e => handleZoomChange(parseFloat(e.target.value))} disabled={rendering} />
+                        <input className="zoom-slider" type="range" min={0} max={zooms.length - 1} step={1} value={zoomIndex} onChange={e => { setZoomIndex(parseInt(e.target.value)); zoomTo(zooms[parseInt(e.target.value)]); }} disabled={zooming} />
                     </div>
-                    <button className="btn ghost" onClick={() => incrementZoom(0.25)} disabled={rendering || cssZoom >= maxZoom} aria-label="Acercar" title="Acercar">{icons.plus}</button>
-                    <span className="zoom-label" aria-live="polite">{Math.round(cssZoom * 100)}%</span>
-                    <button className="btn ghost" onClick={resetZoom} disabled={cssZoom === 1 || rendering} aria-label="Reset zoom" title="Restablecer zoom">{icons.refreshCw}</button>
+                    <button className="btn ghost" onClick={() => zoomIn()} disabled={zooming || zoomIndex >= zooms.length - 1} aria-label="Acercar" title="Acercar">{icons.plus}</button>
+                    <span className="zoom-label" aria-live="polite">{Math.round(zoom * 100)}%</span>
+                    <button className="btn ghost" onClick={resetZoom} disabled={zoom === 1 || zooming} aria-label="Reset zoom" title="Restablecer zoom (100%)">{icons.refreshCw}</button>
                 </div>
                 {rendering && <div className="render-indicator">Renderizando…</div>}
             </div>
             <div className="flipbook-viewport" ref={viewportRef} style={viewportStyle}>
-                {cssZoom > 1 && <div className="pan-overlay" />}
-                <div className="flipbook-wrapper" style={{ width: spreadWidth, height: pageHeight }}>
+                {zoom > 1 && <div className="pan-overlay" />}
+                <div 
+                    className="flipbook-wrapper" 
+                    ref={flipbookContainerRef}
+                    style={{ 
+                        width: spreadWidth,
+                        height: pageHeight,
+                        transform: `scale(${zoom})`,
+                        transformOrigin: 'top left',
+                        transition: zooming ? 'none' : 'transform 0.3s ease-out'
+                    }}
+                >
                     <HTMLFlipBook
                         width={pageWidth}
                         height={pageHeight}
@@ -633,19 +725,14 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
                         ref={bookRef}
                         startPage={startPageIndex}
                         className="flipbook"
-                        useMouseEvents={cssZoom <=1}
+                        useMouseEvents={zoom <=1}
                         flippingTime={300}
-                        style={{ transition: 'width .2s,height .2s' }}
-                        key={`zoom-${renderZoom.toFixed(2)}-base-${effectiveBaseW}x${effectiveBaseH}`}
                         onFlip={handleFlip}
                     >
                         {evenPages.map((pageData, idx) => {
                             // Determinar si la página es visible (página actual y vecinas)
-                            // idx es 0-based, currentPage es 1-based
                             const pageNumber = idx + 1;
                             const isVisible = Math.abs(pageNumber - currentPage) <= 1;
-                            // Calcular cssScale para esta página
-                            const pageCssScale = cssZoom / renderZoom;
                             
                             return (
                                 <div className="page" key={idx} data-density={pageData ? 'hard' : 'soft'}>
@@ -654,8 +741,7 @@ export default function FlipBook({ src = '/src/assets/test.pdf', width = 1000, h
                                         pageNum={pageData?.pageNum}
                                         baseScale={baseScale}
                                         onNavigate={handleNavigate}
-                                        cssScale={pageCssScale}
-                                        renderScale={renderZoom}
+                                        renderScale={zoom}
                                         isVisible={isVisible}
                                     />
                                 </div>
