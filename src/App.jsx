@@ -1,4 +1,6 @@
 import './App.css'
+import { PDFProcessor } from './Core';
+import Main from './Core2';
 import FlipBook from './FlipBook';
 
 function App() {
@@ -6,7 +8,7 @@ function App() {
   return (
     <>
       <div style={{ background:'#f0f2f5'}}>
-        <FlipBook src="/c.pdf" width={1000} height={700} />
+        <FlipBook src='/link.pdf' />
       </div>
     </>
   )

@@ -3,11 +3,154 @@ import HTMLFlipBook from 'react-pageflip';
 import { usePdfiumEngine } from "@embedpdf/engines/react";
 import './FlipBook.css';
 
+// Componente para renderizar enlaces sobre la página
+function PageLinks({ document, pageNum, links, onLinkClick, imgWidth, imgHeight }) {
+    if (!links || links.length === 0) return null;
+
+    const page = document.pages[pageNum - 1];
+    if (!page) return null;
+
+    // Validar que las dimensiones sean válidas
+    if (!imgWidth || !imgHeight || imgWidth === 0 || imgHeight === 0) {
+        console.warn(`Page ${pageNum}: Invalid image dimensions ${imgWidth}x${imgHeight}, skipping links`);
+        return null;
+    }
+
+    // Obtener dimensiones PDF de la página
+    const pdfWidth = page.size.width;
+    const pdfHeight = page.size.height;
+    
+    // Calcular factor de escala: cuántos píxeles CSS representa cada unidad PDF
+    const scaleX = imgWidth / pdfWidth;
+    const scaleY = imgHeight / pdfHeight;
+
+    console.log(`Page ${pageNum}: ${links.length} links, imgSize: ${imgWidth}x${imgHeight}, pdfSize: ${pdfWidth.toFixed(1)}x${pdfHeight.toFixed(1)}, scale: ${scaleX.toFixed(3)}x${scaleY.toFixed(3)}`);
+
+    return (
+        <>
+            {links.map((link, idx) => {
+                const rect = link.rect;
+                if (!rect || !rect.origin || !rect.size) {
+                    console.warn(`Link ${idx} has invalid rect`, link);
+                    return null;
+                }
+                
+                // Coordenadas en el sistema PDF
+                const pdfX = rect.origin.x;
+                const pdfY = rect.origin.y;
+                const pdfRectWidth = rect.size.width;
+                const pdfRectHeight = rect.size.height;
+                
+                // Convertir a píxeles de pantalla usando el factor de escala
+                // Probar directamente sin conversión de coordenadas
+                const left = pdfX * scaleX;
+                const top = pdfY * scaleY;
+                const width = pdfRectWidth * scaleX;
+                const height = pdfRectHeight * scaleY;
+                
+                return (
+                    <div
+                        key={link.id || idx}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onLinkClick(link);
+                        }}
+                        style={{
+                            position: 'absolute',
+                            left: `${left}px`,
+                            top: `${top}px`,
+                            width: `${width}px`,
+                            height: `${height}px`,
+                            border: '2px solid rgba(255, 0, 0, 0.8)',
+                            backgroundColor: 'rgba(255, 0, 0, 0.2)',
+                            cursor: 'pointer',
+                            pointerEvents: 'auto',
+                            transition: 'all 0.2s',
+                            zIndex: 10,
+                            boxSizing: 'border-box',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 0, 0, 1)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(255, 0, 0, 0.2)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 0, 0, 0.8)';
+                        }}
+                        title={link.target?.action?.uri || (link.target?.destination ? 'Enlace interno' : 'Enlace')}
+                    />
+                );
+            })}
+        </>
+    );
+}
+
 // Componente de página individual usando @embedpdf/engines
-function PDFPage({ engine, document, pageNum, renderScale = 1, isVisible = false }) {
+function PDFPage({ engine, document, pageNum, renderScale = 1, isVisible = false, onLinkClick }) {
     const imgRef = useRef(null);
     const [imageUrl, setImageUrl] = useState(null);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
+    const [links, setLinks] = useState([]);
     const lastRenderedScaleRef = useRef(null);
+    
+    // Reset imageLoaded y dimensiones cuando cambia pageNum o la URL de la imagen
+    useEffect(() => {
+        setImageLoaded(false);
+        setImageDimensions({ width: 0, height: 0 });
+    }, [pageNum, imageUrl]);
+
+    // Observar cambios de tamaño del <img> (cuando la página pasa a visible o cambia layout)
+    useEffect(() => {
+        const img = imgRef.current;
+        if (!img) return;
+        const measure = () => {
+            const w = img.offsetWidth || img.clientWidth || 0;
+            const h = img.offsetHeight || img.clientHeight || 0;
+            setImageDimensions(prev => (prev.width !== w || prev.height !== h) ? { width: w, height: h } : prev);
+        };
+        // medir en el próximo frame (después de flip/zoom)
+        if (imageLoaded) {
+            requestAnimationFrame(measure);
+            setTimeout(measure, 50);
+        }
+        const ro = new ResizeObserver(measure);
+        ro.observe(img);
+        return () => ro.disconnect();
+    }, [imageLoaded, isVisible]);
+
+    // Cargar anotaciones de enlaces
+    useEffect(() => {
+        if (!engine || !document || !pageNum) return;
+        
+        let cancelled = false;
+        
+        const loadAnnotations = async () => {
+            try {
+                const page = document.pages[pageNum - 1];
+                if (!page || cancelled) return;
+                
+                const annotations = await engine.getPageAnnotations(document, page).toPromise();
+                
+                if (cancelled) return;
+                
+                // Filtrar solo anotaciones de tipo LINK (type = 2)
+                const linkAnnotations = annotations.filter(anno => anno.type === 2);
+                
+                setLinks(linkAnnotations);
+            } catch (error) {
+                if (!cancelled) {
+                    console.error(`Error loading annotations for page ${pageNum}:`, error);
+                }
+            }
+        };
+        
+        loadAnnotations();
+        
+        return () => {
+            cancelled = true;
+        };
+    }, [engine, document, pageNum]);
 
     useEffect(() => {
         if (!engine || !document || !pageNum) return;
@@ -100,19 +243,42 @@ function PDFPage({ engine, document, pageNum, renderScale = 1, isVisible = false
             }}
         >
             {imageUrl ? (
-                <img
-                    ref={imgRef}
-                    src={imageUrl}
-                    alt={`PDF Page ${pageNum}`}
-                    style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        display: 'block',
-                        imageRendering: 'crisp-edges', // Evitar suavizado/blur
-                        WebkitFontSmoothing: 'antialiased',
-                        objectFit: 'contain',
-                    }}
-                />
+                <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%', maxHeight: '100%' }}>
+                    <img
+                        ref={imgRef}
+                        src={imageUrl}
+                        alt={`PDF Page ${pageNum}`}
+                        onLoad={() => setImageLoaded(true)}
+                        style={{
+                            display: 'block',
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            width: 'auto',
+                            height: 'auto',
+                            imageRendering: 'crisp-edges',
+                            WebkitFontSmoothing: 'antialiased',
+                        }}
+                    />
+                    {links.length > 0 && imageLoaded && imageDimensions.width > 0 && (
+                        <div style={{ 
+                            position: 'absolute', 
+                            top: 0, 
+                            left: 0, 
+                            width: `${imageDimensions.width}px`,
+                            height: `${imageDimensions.height}px`,
+                            pointerEvents: 'none'
+                        }}>
+                            <PageLinks
+                                document={document}
+                                pageNum={pageNum}
+                                links={links}
+                                onLinkClick={onLinkClick}
+                                imgWidth={imageDimensions.width}
+                                imgHeight={imageDimensions.height}
+                            />
+                        </div>
+                    )}
+                </div>
             ) : (
                 <div style={{ padding: '20px', color: '#666' }}>Cargando...</div>
             )}
@@ -128,7 +294,8 @@ const MemoizedPDFPage = memo(PDFPage, (prevProps, nextProps) => {
         prevProps.renderScale === nextProps.renderScale &&
         prevProps.isVisible === nextProps.isVisible &&
         prevProps.document === nextProps.document &&
-        prevProps.engine === nextProps.engine
+        prevProps.engine === nextProps.engine &&
+        prevProps.onLinkClick === nextProps.onLinkClick
     );
 });
 
@@ -403,6 +570,61 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
         setCurrentPage(leftIndex + 1);
     }, []);
 
+    // Handler para clicks en enlaces
+    const handleLinkClick = useCallback((link) => {
+        console.log('Link clicked:', link);
+        
+        if (!link.target) {
+            console.warn('Link has no target');
+            return;
+        }
+        
+        const target = link.target;
+        
+        // Si tiene una acción
+        if (target.type === 'action' && target.action) {
+            const action = target.action;
+            console.log('Link action:', action);
+            
+            // Tipo 3 = URI (enlace externo)
+            if (action.type === 3 && action.uri) {
+                console.log('Opening external URL:', action.uri);
+                window.open(action.uri, '_blank', 'noopener,noreferrer');
+                return;
+            }
+            
+            // Tipo 4 = GoToE (ir a archivo externo)
+            if (action.type === 4 && action.path) {
+                console.log('External file link:', action.path);
+                // Podrías abrir el archivo si está disponible
+                alert(`Enlace a archivo: ${action.path}`);
+                return;
+            }
+        }
+        
+        // Si tiene un destino interno
+        if (target.type === 'destination' && target.destination) {
+            const dest = target.destination;
+            console.log('Internal destination:', dest);
+            
+            const api = bookRef.current?.pageFlip();
+            if (!api || !pdfDocument) return;
+            
+            try {
+                const targetPageIndex = dest.pageIndex;
+                
+                if (typeof targetPageIndex === 'number') {
+                    const pageIndex = Math.max(0, Math.min(targetPageIndex, pdfDocument.pageCount - 1));
+                    console.log(`Navigating to page ${pageIndex + 1}`);
+                    api.flip(pageIndex);
+                    setCurrentPage(pageIndex + 1);
+                }
+            } catch (error) {
+                console.error('Error navigating to page:', error);
+            }
+        }
+    }, [pdfDocument]);
+
     // TODO: handler para navegación desde enlaces internos del PDF
     // Esto requeriría soporte adicional de @embedpdf/engines para extraer anotaciones
     // const handleNavigate = useCallback(({ page, zoom: linkZoom }) => {
@@ -589,6 +811,7 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
                                         pageNum={pageData?.pageNum}
                                         renderScale={zoom}
                                         isVisible={isVisible}
+                                        onLinkClick={handleLinkClick}
                                     />
                                 </div>
                             );

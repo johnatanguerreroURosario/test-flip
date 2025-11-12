@@ -46,7 +46,7 @@ export const PDFProcessor = () => {
 
     const loadDocument = async () => {
       try {
-        let src = '/src/assets/c.pdf'; // Ruta del PDF a cargar
+        let src = '/src/assets/link.pdf'; // Ruta del PDF a cargar
  let pdfUrl = src;
             if (!src.startsWith('http')) {
                 // Para rutas locales, usar la URL base actual
