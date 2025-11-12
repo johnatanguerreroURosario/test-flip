@@ -46,9 +46,19 @@ export const PDFProcessor = () => {
 
     const loadDocument = async () => {
       try {
+        let src = '/src/assets/c.pdf'; // Ruta del PDF a cargar
+ let pdfUrl = src;
+            if (!src.startsWith('http')) {
+                // Para rutas locales, usar la URL base actual
+                const baseUrl = window.location.origin;
+                // Limpiar la ruta (eliminar /src/ si existe)
+                const cleanPath = src.replace(/^\/src\/assets\//, '/');
+                pdfUrl = `${baseUrl}${cleanPath}`;
+            }
+
         const fileUrl = {
           id: "my-doc",
-          url: "https://snippet.embedpdf.com/ebook.pdf",
+          url: pdfUrl,
         };
 
         const doc = await engine.openDocumentUrl(fileUrl).toPromise();

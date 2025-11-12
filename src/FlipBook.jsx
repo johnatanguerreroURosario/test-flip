@@ -132,7 +132,7 @@ const MemoizedPDFPage = memo(PDFPage, (prevProps, nextProps) => {
     );
 });
 
-export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700, minZoom = 0.6, maxZoom = 2.5, responsive = true, zoomDuration = 500, zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5] }) {
+export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700,  responsive = true, zoomDuration = 500, zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5] }) {
     const { engine, isLoading: engineLoading, error: engineError } = usePdfiumEngine();
     const [isEngineReady, setIsEngineReady] = useState(false);
     const [pdfDocument, setPdfDocument] = useState(null);
