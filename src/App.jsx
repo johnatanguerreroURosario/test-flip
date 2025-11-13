@@ -1,6 +1,4 @@
 import './App.css'
-import { PDFProcessor } from './Core';
-import Main from './Core2';
 import FlipBook from './FlipBook';
 
 function App() {
