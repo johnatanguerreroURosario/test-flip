@@ -7,11 +7,5 @@ export default defineConfig({
   publicDir: 'public',
   build: {
     assetsInlineLimit: 0,
-  },
-  server: {
-    headers: {
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-      'Cross-Origin-Opener-Policy': 'same-origin',
-    }
   }
 })
