@@ -33,18 +33,44 @@ export default function Hotspot({ hotspot, onClick, imgWidth, imgHeight }) {
     };
 
     const handleMouseMove = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+    };
+
+    const handlePointerDown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+    };
+
+    const handlePointerUp = (e) => {
+        e.preventDefault();
         e.stopPropagation();
         e.nativeEvent.stopImmediatePropagation();
     };
 
     return (
-        <>
+        <div
+            className="hotspot-wrapper"
+            style={{
+                position: 'absolute',
+                left: `${x}px`,
+                top: `${y}px`,
+                width: `${width}px`,
+                height: `${height}px`,
+                pointerEvents: 'auto',
+                zIndex: 200,
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onMouseMove={handleMouseMove}
+        >
             <div
                 className="hotspot"
                 onClick={handleClick}
-                onMouseDown={handleMouseDown}
-                onMouseUp={handleMouseUp}
-                onMouseMove={handleMouseMove}
                 onMouseEnter={() => setShowTooltip(true)}
                 onMouseLeave={() => setShowTooltip(false)}
                 onTouchStart={(e) => {
@@ -56,14 +82,9 @@ export default function Hotspot({ hotspot, onClick, imgWidth, imgHeight }) {
                     e.stopPropagation();
                 }}
                 style={{
-                    position: 'absolute',
-                    left: `${x}px`,
-                    top: `${y}px`,
-                    width: `${width}px`,
-                    height: `${height}px`,
+                    width: '100%',
+                    height: '100%',
                     cursor: 'pointer',
-                    pointerEvents: 'auto',
-                    zIndex: 200,
                     touchAction: 'none',
                 }}
             >
@@ -77,6 +98,6 @@ export default function Hotspot({ hotspot, onClick, imgWidth, imgHeight }) {
                     )}
                 </div>
             </div>
-        </>
+        </div>
     );
 }
