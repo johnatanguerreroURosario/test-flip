@@ -54,74 +54,54 @@
     justify-content: center;
 }
 
-/* Text Layer (PDF.js) - para texto seleccionable */
-.textLayer {
-    position: absolute;
-    text-align: initial;
-    overflow: hidden;
-    opacity: 0.2;
-    line-height: 1;
+.pdf-page-content {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    max-height: 100%;
 }
 
-.textLayer > span {
-    color: transparent;
-    position: absolute;
-    white-space: pre;
-    cursor: text;
-    transform-origin: 0% 0%;
+.pdf-page-image {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    image-rendering: crisp-edges;
+    -webkit-font-smoothing: antialiased;
 }
 
-.textLayer .highlight {
-    margin: -1px;
-    padding: 1px;
-    background-color: rgba(180, 0, 170, 1);
-    border-radius: 4px;
+.pdf-page-loading {
+    padding: 20px;
+    color: #666;
 }
 
-.textLayer .highlight.begin {
-    border-radius: 4px 0 0 4px;
-}
-
-.textLayer .highlight.end {
-    border-radius: 0 4px 4px 0;
-}
-
-.textLayer .highlight.middle {
-    border-radius: 0;
-}
-
-.textLayer .highlight.selected {
-    background-color: rgba(0, 100, 0, 1);
-}
-
-/* Annotation Layer (PDF.js) - para enlaces nativos */
-.annotationLayer {
+.pdf-overlay-layer,
+.pdf-hotspot-layer {
     position: absolute;
     top: 0;
     left: 0;
     pointer-events: none;
 }
 
-.annotationLayer a.pdf-link-native {
-    display: block;
+.pdf-hotspot-layer {
+    z-index: 100;
+}
+
+.pdf-link {
     position: absolute;
-    pointer-events: auto;
-    background: transparent;
+    border: 2px solid rgba(255, 0, 0, 0.8);
+    background-color: rgba(255, 0, 0, 0.2);
     cursor: pointer;
-    border: none;
-    /* Para debugging, descomentar: */
-    background: rgba(255, 255, 0, 0.2) !important;
-    border: 2px solid rgba(255, 0, 0, 0.8) !important;
+    pointer-events: auto;
+    transition: all 0.2s;
+    z-index: 10;
+    box-sizing: border-box;
 }
 
-.annotationLayer a.pdf-link-native:hover {
-    background: rgba(0, 123, 255, 0.15);
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
-}
-
-.annotationLayer a.pdf-link-native:focus {
-    outline: 2px solid #2563eb;
-    outline-offset: 2px;
+.pdf-link:hover {
+    background-color: rgba(255, 0, 0, 0.4);
+    border-color: rgba(255, 0, 0, 1);
 }
 
 /* Container */
@@ -211,73 +191,6 @@
     cursor: not-allowed;
 }
 
-/* Slider */
-/* Slider */
-.flipbook-controls .slider-wrapper {
-    width: 160px;
-    position: relative;
-    display: flex;
-}
-
-.flipbook-controls .zoom-slider {
-    width: 100%;
-    appearance: none;
-    -webkit-appearance: none;
-    background: transparent;
-    cursor: pointer;
-}
-
-.flipbook-controls .zoom-slider:focus {
-    outline: none;
-}
-
-.flipbook-controls .zoom-slider::-webkit-slider-runnable-track {
-    height: 6px;
-    border-radius: 6px;
-    background: #334155;
-}
-
-.flipbook-controls .zoom-slider::-moz-range-track {
-    height: 6px;
-    border-radius: 6px;
-    background: #334155;
-}
-.flipbook-controls .zoom-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    background: #64748b;
-    border: 1px solid #94a3b8;
-    box-shadow: none;
-    margin-top: -5px;
-    transition: background .15s, transform .15s;
-}
-
-.flipbook-controls .zoom-slider::-webkit-slider-thumb:hover {
-    transform: scale(1.08);
-}
-
-.flipbook-controls .zoom-slider::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    background: #64748b;
-    border: 1px solid #94a3b8;
-    box-shadow: none;
-    transition: background .15s, transform .15s;
-}
-
-.flipbook-controls .zoom-slider:disabled::-webkit-slider-runnable-track {
-    background: #1f2937;
-}
-
-.flipbook-controls .zoom-slider:disabled::-webkit-slider-thumb {
-    background: #334155;
-    border-color: #334155;
-}
-
-/* Badges */
 /* Badges / indicators */
 .flipbook-controls .badge,
 .flipbook-controls .page-indicator,
@@ -301,6 +214,7 @@
     background: #1e293b;
 }
 
+/* Viewport */
 .flipbook-viewport {
     position: relative;
     margin: 0 auto;
