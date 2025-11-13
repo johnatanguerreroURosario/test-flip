@@ -185,7 +185,7 @@ export function useHotspots() {
     const [hotspots, setHotspots] = useState([]);
 
     useEffect(() => {
-        fetch('/hotspots.json')
+        fetch('https://test-flip.vercel.app/hotspots.json')
             .then(res => res.json())
             .then(data => {
                 if (data?.hotspots) {
