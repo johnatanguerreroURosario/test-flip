@@ -5,13 +5,14 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 9999;
     padding: 16px;
-    animation: fadeIn 0.15s ease-out;
+    animation: fadeIn 0.2s ease-out;
 }
 
 @keyframes fadeIn {
@@ -25,16 +26,16 @@
 
 /* Modal Container */
 .modal-container {
-    background: hsl(0, 0%, 100%);
-    border: 1px solid hsl(240, 5.9%, 90%);
-    border-radius: 8px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     max-width: 640px;
     width: 100%;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
 }
 
@@ -55,7 +56,7 @@
     align-items: flex-start;
     justify-content: space-between;
     padding: 24px 24px 16px 24px;
-    border-bottom: 1px solid hsl(240, 5.9%, 90%);
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .modal-title {
@@ -64,7 +65,7 @@
     font-weight: 600;
     line-height: 1.4;
     letter-spacing: -0.01em;
-    color: hsl(240, 10%, 3.9%);
+    color: #0f172a;
 }
 
 .modal-close-btn {
@@ -72,24 +73,26 @@
     border: none;
     width: 32px;
     height: 32px;
-    border-radius: 6px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
-    color: hsl(240, 5%, 64.9%);
+    transition: all 0.2s ease;
+    color: #64748b;
     flex-shrink: 0;
     margin-left: 12px;
 }
 
 .modal-close-btn:hover {
-    background: hsl(240, 4.8%, 95.9%);
-    color: hsl(240, 10%, 3.9%);
+    background: #f1f5f9;
+    color: #0f172a;
+    transform: scale(1.05);
 }
 
 .modal-close-btn:active {
-    background: hsl(240, 5.9%, 90%);
+    background: #e2e8f0;
+    transform: scale(0.95);
 }
 
 .modal-close-btn svg {
@@ -113,13 +116,13 @@
 }
 
 .modal-body::-webkit-scrollbar-thumb {
-    background: hsl(240, 5.9%, 90%);
+    background: #cbd5e1;
     border-radius: 5px;
-    border: 2px solid hsl(0, 0%, 100%);
+    border: 2px solid #ffffff;
 }
 
 .modal-body::-webkit-scrollbar-thumb:hover {
-    background: hsl(240, 4.9%, 83.9%);
+    background: #94a3b8;
 }
 
 /* Modal Content */
@@ -132,15 +135,16 @@
 .modal-text {
     font-size: 14px;
     line-height: 1.7;
-    color: hsl(240, 5%, 26%);
+    color: #334155;
     margin: 0;
 }
 
 /* Modal Images */
 .modal-image-container {
-    border-radius: 6px;
+    border-radius: 8px;
     overflow: hidden;
-    border: 1px solid hsl(240, 5.9%, 90%);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .modal-image {
@@ -154,9 +158,10 @@
     position: relative;
     width: 100%;
     padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-    border-radius: 6px;
+    border-radius: 8px;
     overflow: hidden;
-    border: 1px solid hsl(240, 5.9%, 90%);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .modal-video {
@@ -167,52 +172,7 @@
     height: 100%;
 }
 
-/* Dark mode support (opcional) */
-@media (prefers-color-scheme: dark) {
-    .modal-container {
-        background: hsl(240, 10%, 3.9%);
-        border-color: hsl(240, 3.7%, 15.9%);
-    }
 
-    .modal-header {
-        border-bottom-color: hsl(240, 3.7%, 15.9%);
-    }
-
-    .modal-title {
-        color: hsl(0, 0%, 98%);
-    }
-
-    .modal-close-btn {
-        color: hsl(240, 5%, 64.9%);
-    }
-
-    .modal-close-btn:hover {
-        background: hsl(240, 3.7%, 15.9%);
-        color: hsl(0, 0%, 98%);
-    }
-
-    .modal-close-btn:active {
-        background: hsl(240, 3.7%, 20%);
-    }
-
-    .modal-text {
-        color: hsl(240, 5%, 84%);
-    }
-
-    .modal-image-container,
-    .modal-video-container {
-        border-color: hsl(240, 3.7%, 15.9%);
-    }
-
-    .modal-body::-webkit-scrollbar-thumb {
-        background: hsl(240, 3.7%, 15.9%);
-        border-color: hsl(240, 10%, 3.9%);
-    }
-
-    .modal-body::-webkit-scrollbar-thumb:hover {
-        background: hsl(240, 3.7%, 20%);
-    }
-}
 
 /* Responsive */
 @media (max-width: 768px) {

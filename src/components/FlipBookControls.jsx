@@ -12,7 +12,9 @@ export default function FlipBookControls({
     onNextPage,
     onZoomIn,
     onZoomOut,
-    onResetZoom
+    onResetZoom,
+    isFullscreen,
+    onToggleFullscreen
 }) {
     return (
         <div className="flipbook-controls dark-layout">
@@ -70,6 +72,17 @@ export default function FlipBookControls({
                     title="Restablecer zoom (100%)"
                 >
                     <Icons.RefreshCw />
+                </button>
+            </div>
+
+            <div className="control-group fullscreen-group">
+                <button 
+                    className="btn ghost" 
+                    onClick={onToggleFullscreen}
+                    aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+                    title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+                >
+                    {isFullscreen ? <Icons.Minimize /> : <Icons.Maximize />}
                 </button>
             </div>
             

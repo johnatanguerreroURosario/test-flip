@@ -242,7 +242,9 @@ function PDFPage({
                     )}
                 </div>
             ) : (
-                <div className="pdf-page-loading">Cargando...</div>
+                <div className="pdf-page-loading">
+                    <div className="mini-spinner"></div>
+                </div>
             )}
         </div>
     );

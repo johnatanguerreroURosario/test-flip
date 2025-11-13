@@ -8,14 +8,178 @@
     min-height: 100%;
 }
 
+/* Loading States */
 .flipbook-status {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
     padding: 2rem;
-    font-size: 1.1rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
 }
 
 .flipbook-status.error {
-    color: #c00;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-color: #fecaca;
+}
+
+/* Loader Container */
+.loader-container {
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.loader-text {
+    margin: 1.5rem 0 0.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1e293b;
+    letter-spacing: 0.3px;
+}
+
+.loader-subtext {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-top: 0.5rem;
+}
+
+/* Spinner Animations */
+.spinner {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto;
+    border: 4px solid #e2e8f0;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.spinner.pulse {
+    border-top-color: #10b981;
+    animation: spin 0.8s linear infinite, pulse 2s ease-in-out infinite;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.spinner.dots {
+    border: none;
+    box-shadow: none;
+    width: 60px;
+    height: 16px;
+    background: transparent;
+    position: relative;
+    animation: none;
+}
+
+.spinner.dots::before,
+.spinner.dots::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #3b82f6;
+    animation: dotPulse 1.5s ease-in-out infinite;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+}
+
+.spinner.dots::before {
+    left: 0;
+    animation-delay: 0s;
+}
+
+.spinner.dots::after {
+    right: 0;
+    animation-delay: 0.5s;
+}
+
+/* Error Container */
+.error-container {
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.error-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: #dc2626;
+    background: #fee2e2;
+    border-radius: 50%;
+    border: 3px solid #fecaca;
+    animation: errorShake 0.5s ease-in-out;
+}
+
+.error-text {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #dc2626;
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.3px;
+}
+
+.error-message {
+    font-size: 0.95rem;
+    color: #475569;
+    background: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #fca5a5;
+    max-width: 500px;
+    margin: 0 auto;
+    word-break: break-word;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Keyframe Animations */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% { 
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+}
+
+@keyframes dotPulse {
+    0%, 100% { 
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    50% { 
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from { 
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
 
 .flipbook {
@@ -24,12 +188,13 @@
 
 /* Pages */
 .page {
-    background: #111827; /* dark slate */
+    background: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    border: 1px solid #1f2937;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .page img {
@@ -41,7 +206,7 @@
 .blank-page {
     width: 100%;
     height: 100%;
-    background: #1f2937;
+    background: #f8fafc;
 }
 
 /* PDF Page Container */
@@ -71,9 +236,24 @@
     -webkit-font-smoothing: antialiased;
 }
 
+/* PDF Page Loading */
 .pdf-page-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 20px;
-    color: #666;
+    min-height: 100px;
+    background: #f8fafc;
+}
+
+.mini-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e2e8f0;
+    border-top: 3px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
 }
 
 .pdf-overlay-layer,
@@ -90,18 +270,20 @@
 
 .pdf-link {
     position: absolute;
-    border: 2px solid rgba(255, 0, 0, 0.8);
-    background-color: rgba(255, 0, 0, 0.2);
+    border: 2px solid rgba(59, 130, 246, 0.5);
+    background-color: rgba(59, 130, 246, 0.1);
     cursor: pointer;
     pointer-events: auto;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     z-index: 10;
     box-sizing: border-box;
+    border-radius: 4px;
 }
 
 .pdf-link:hover {
-    background-color: rgba(255, 0, 0, 0.4);
-    border-color: rgba(255, 0, 0, 1);
+    background-color: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.8);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
 /* Container */
@@ -110,22 +292,49 @@
     width: 100%;
     max-width: 100%;
     padding: 0.5rem 1rem 2rem;
-    background: #0f172a; /* overall dark background */
-    color: #e2e8f0;
+    background: #f8fafc;
+    color: #1e293b;
     box-sizing: border-box;
 }
 
-/* Dark control bar */
+/* Fullscreen mode */
+.flipbook-container:fullscreen {
+    padding: 0.5rem;
+    background: #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+}
+
+.flipbook-container:fullscreen .flipbook-controls {
+    margin-bottom: 0.5rem;
+    flex-shrink: 0;
+}
+
+.flipbook-container:fullscreen .flipbook-viewport {
+    flex: 1;
+    height: auto !important;
+    width: auto !important;
+    max-height: none;
+    max-width: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Control bar */
 .flipbook-controls.dark-layout {
     display: flex;
     flex-wrap: wrap;
     gap: 1.25rem;
     align-items: center;
     margin-bottom: .9rem;
-    background: #1e293b;
+    background: white;
     padding: .65rem 1rem;
-    border: 1px solid #334155;
+    border: 1px solid #e2e8f0;
     border-radius: .75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .flipbook-controls .control-group {
@@ -139,42 +348,48 @@
     gap: .55rem;
 }
 
+.flipbook-controls .fullscreen-group {
+    margin-left: auto;
+}
+
 
 /* Buttons */
-/* Buttons */
 .flipbook-controls .btn {
-    --btn-bg: #334155;
-    --btn-color: #f1f5f9;
-    --btn-border: #475569;
+    --btn-bg: #f1f5f9;
+    --btn-color: #334155;
+    --btn-border: #cbd5e1;
     position: relative;
     font-size: .75rem;
     font-weight: 500;
     line-height: 1;
     padding: .5rem .7rem;
-    border-radius: .45rem;
+    border-radius: .5rem;
     border: 1px solid var(--btn-border);
     background: var(--btn-bg);
     color: var(--btn-color);
     cursor: pointer;
-    transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
+    transition: all .2s ease;
     user-select: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .flipbook-controls .btn.ghost {
-    --btn-bg: #1e293b;
-    --btn-color: #e2e8f0;
-    --btn-border: #334155;
+    --btn-bg: white;
+    --btn-color: #475569;
+    --btn-border: #e2e8f0;
 }
 
-/* Outline variant no longer used, keep neutral */
 .flipbook-controls .btn.outline {
-    --btn-bg: #0f172a;
-    --btn-color: #e2e8f0;
-    --btn-border: #334155;
+    --btn-bg: white;
+    --btn-color: #475569;
+    --btn-border: #cbd5e1;
 }
 
 .flipbook-controls .btn:not(:disabled):hover {
-    background: #42536a;
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .flipbook-controls .btn:not(:disabled):active {
@@ -196,47 +411,61 @@
 .flipbook-controls .page-indicator,
 .flipbook-controls .zoom-label {
     font-size: .7rem;
-    letter-spacing: .5px;
+    letter-spacing: .3px;
     padding: .35rem .6rem;
-    border-radius: .35rem;
+    border-radius: .4rem;
     font-weight: 500;
-    background: #0f172a;
-    color: #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
     display: inline-flex;
     align-items: center;
     gap: .25rem;
-    border: 1px solid #1e293b;
+    border: 1px solid #e2e8f0;
 }
-
 
 /* Page badge variation */
 .flipbook-controls .badge.page {
-    background: #1e293b;
+    background: #eff6ff;
+    color: #1e40af;
+    border-color: #bfdbfe;
 }
 
 /* Viewport */
 .flipbook-viewport {
     position: relative;
     margin: 0 auto;
-    background: #0f172a;
-    box-shadow: 0 0 0 1px #1e293b inset;
-    border-radius: 8px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
     overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.flipbook-viewport.zoomed {
+    overflow: auto;
+    cursor: grab;
+}
+
+.flipbook-viewport.fullscreen-mode {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
 }
 
 .flipbook-viewport::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
 }
 
 .flipbook-viewport::-webkit-scrollbar-track {
-    background: transparent;
+    background: #f8fafc;
 }
 
 .flipbook-viewport::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 8px;
-    border: 2px solid #f1f5f9;
+    border: 3px solid #f8fafc;
 }
 
 .flipbook-viewport:hover::-webkit-scrollbar-thumb {
@@ -259,12 +488,7 @@
 /* Rendering indicator */
 .render-indicator {
     font-size: .65rem;
-    color: #94a3b8;
-}
-
-/* Dark theme utility */
-.dark-theme * {
-    scrollbar-color: #334155 transparent;
+    color: #64748b;
 }
 
 .flipbook-viewport.panning {
@@ -335,7 +559,7 @@
 
     /* Mejor visualización en móvil */
     .page {
-        background: #0a0f1a;
+        background: #ffffff;
     }
 
     .flipbook-wrapper {

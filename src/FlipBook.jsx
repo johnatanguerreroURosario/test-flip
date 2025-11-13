@@ -28,6 +28,7 @@ export default function FlipBook({
     const [currentPage, setCurrentPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     
     const bookRef = useRef(null);
     const renderTokenRef = useRef(0);
@@ -37,7 +38,7 @@ export default function FlipBook({
     const isMobile = useIsMobile();
     const hotspots = useHotspots();
     const { pdfDocument, loading, error } = usePdfLoader({ engine, isEngineReady, src });
-    const baseViewport = useResponsiveViewport({ containerRef, width, height, responsive });
+    const baseViewport = useResponsiveViewport({ containerRef, width, height, responsive, isFullscreen });
     const { zoom, zoomIndex, zooming, zoomIn, zoomOut, resetZoom, maxZoomIndex } = useZoom({ 
         zoomDuration, 
         zooms, 
@@ -141,6 +142,25 @@ export default function FlipBook({
         setModalContent(null);
     }, []);
 
+    const toggleFullscreen = useCallback(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        if (!document.fullscreenElement) {
+            container.requestFullscreen().then(() => {
+                setIsFullscreen(true);
+            }).catch(err => {
+                console.error('Error al entrar en pantalla completa:', err);
+            });
+        } else {
+            document.exitFullscreen().then(() => {
+                setIsFullscreen(false);
+            }).catch(err => {
+                console.error('Error al salir de pantalla completa:', err);
+            });
+        }
+    }, []);
+
     const goPrev = () => bookRef.current?.pageFlip().flipPrev();
     const goNext = () => bookRef.current?.pageFlip().flipNext();
 
@@ -168,6 +188,16 @@ export default function FlipBook({
             console.error(e);
         }
     }, [pages, currentPage, pdfDocument]);
+
+    // Detectar cambios en fullscreen
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
 
     // Panning con zoom
     useEffect(() => {
@@ -217,19 +247,58 @@ export default function FlipBook({
 
     // Estados de carga
     if (engineLoading || !isEngineReady) {
-        return <div className="flipbook-status">Inicializando motor PDF...</div>;
+        return (
+            <div className="flipbook-status">
+                <div className="loader-container">
+                    <div className="spinner"></div>
+                    <p className="loader-text">Inicializando motor PDF...</p>
+                    <div className="loader-subtext">Preparando el entorno de visualización</div>
+                </div>
+            </div>
+        );
     }
     if (engineError) {
-        return <div className="flipbook-status error">Error: {engineError.message}</div>;
+        return (
+            <div className="flipbook-status error">
+                <div className="error-container">
+                    <div className="error-icon">⚠</div>
+                    <p className="error-text">Error al inicializar</p>
+                    <div className="error-message">{engineError.message}</div>
+                </div>
+            </div>
+        );
     }
     if (loading) {
-        return <div className="flipbook-status">Cargando PDF...</div>;
+        return (
+            <div className="flipbook-status">
+                <div className="loader-container">
+                    <div className="spinner pulse"></div>
+                    <p className="loader-text">Cargando PDF...</p>
+                    <div className="loader-subtext">Procesando documento</div>
+                </div>
+            </div>
+        );
     }
     if (error) {
-        return <div className="flipbook-status error">{error}</div>;
+        return (
+            <div className="flipbook-status error">
+                <div className="error-container">
+                    <div className="error-icon">✕</div>
+                    <p className="error-text">Error al cargar documento</p>
+                    <div className="error-message">{error}</div>
+                </div>
+            </div>
+        );
     }
     if (!pdfDocument) {
-        return <div className="flipbook-status">Esperando documento...</div>;
+        return (
+            <div className="flipbook-status">
+                <div className="loader-container">
+                    <div className="spinner dots"></div>
+                    <p className="loader-text">Esperando documento...</p>
+                </div>
+            </div>
+        );
     }
 
     // Cálculos de dimensiones
@@ -243,15 +312,17 @@ export default function FlipBook({
     const clampedPage = Math.min(currentPage, pdfDocument.pageCount);
     const startPageIndex = Math.max(0, Math.min(currentPage - 1, totalPages - 1));
 
-    const viewportStyle = {
+    const viewportStyle = isFullscreen ? {} : {
         width: effectiveBaseW + 'px',
         height: effectiveBaseH + 'px',
         overflow: zoom > 1 ? 'auto' : 'hidden',
         cursor: zoom > 1 ? 'grab' : 'auto'
     };
 
+    const viewportClasses = `flipbook-viewport ${zoom > 1 ? 'zoomed' : ''} ${isFullscreen ? 'fullscreen-mode' : ''}`;
+
     return (
-        <div className="flipbook-container dark-theme" ref={containerRef}>
+        <div className="flipbook-container" ref={containerRef}>
             <FlipBookControls
                 currentPage={clampedPage}
                 totalPages={totalPages}
@@ -265,9 +336,11 @@ export default function FlipBook({
                 onZoomIn={zoomIn}
                 onZoomOut={zoomOut}
                 onResetZoom={resetZoom}
+                isFullscreen={isFullscreen}
+                onToggleFullscreen={toggleFullscreen}
             />
             
-            <div className="flipbook-viewport" ref={viewportRef} style={viewportStyle}>
+            <div className={viewportClasses} ref={viewportRef} style={viewportStyle}>
                 {zoom > 1 && <div className="pan-overlay" />}
                 <div 
                     className="flipbook-wrapper"

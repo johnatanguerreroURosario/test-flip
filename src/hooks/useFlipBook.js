@@ -201,37 +201,72 @@ export function useHotspots() {
 }
 
 // Hook para viewport responsivo
-export function useResponsiveViewport({ containerRef, width, height, responsive }) {
+export function useResponsiveViewport({ containerRef, width, height, responsive, isFullscreen }) {
     const [baseViewport, setBaseViewport] = useState({ w: width, h: height });
 
     useEffect(() => {
-        if (!responsive) return;
-        
         const ratio = height / width;
         
         function recalc() {
             if (!containerRef.current) return;
-            const cw = containerRef.current.clientWidth;
-            const targetW = Math.max(320, Math.min(cw - 32, width));
-            const targetH = targetW * ratio;
-            setBaseViewport(v => 
-                (v.w !== targetW || v.h !== targetH) ? { w: targetW, h: targetH } : v
-            );
+            const container = containerRef.current;
+            
+            let targetW, targetH;
+            
+            if (isFullscreen && document.fullscreenElement) {
+                // En fullscreen, calcular basado en viewport real
+                const availableW = window.innerWidth - 16;
+                const availableH = window.innerHeight - 90; // espacio para controles
+                
+                // Mantener aspect ratio
+                const viewportRatio = availableW / availableH;
+                const contentRatio = 1 / ratio; // ratio del contenido (spread = 2 páginas)
+                
+                if (viewportRatio > contentRatio) {
+                    // Limitado por altura
+                    targetH = availableH;
+                    targetW = targetH / ratio;
+                } else {
+                    // Limitado por ancho
+                    targetW = availableW;
+                    targetH = targetW * ratio;
+                }
+            } else if (responsive) {
+                // Modo normal responsivo
+                const cw = container.clientWidth;
+                targetW = Math.max(320, Math.min(cw - 32, width));
+                targetH = targetW * ratio;
+            } else {
+                // Modo fijo
+                targetW = width;
+                targetH = height;
+            }
+            
+            setBaseViewport(v => {
+                const newW = Math.round(targetW);
+                const newH = Math.round(targetH);
+                return (v.w !== newW || v.h !== newH) ? { w: newW, h: newH } : v;
+            });
         }
         
         recalc();
+        
         const ro = new ResizeObserver(recalc);
         if (containerRef.current) ro.observe(containerRef.current);
         
-        window.addEventListener('orientationchange', recalc);
         window.addEventListener('resize', recalc);
+        window.addEventListener('orientationchange', recalc);
+        
+        // Recalcular cuando cambia fullscreen
+        const timer = setTimeout(recalc, 100);
         
         return () => {
+            clearTimeout(timer);
             ro.disconnect();
-            window.removeEventListener('orientationchange', recalc);
             window.removeEventListener('resize', recalc);
+            window.removeEventListener('orientationchange', recalc);
         };
-    }, [responsive, width, height, containerRef]);
+    }, [responsive, width, height, containerRef, isFullscreen]);
 
     return baseViewport;
 }
