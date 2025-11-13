@@ -2,6 +2,8 @@ import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import HTMLFlipBook from 'react-pageflip';
 import { usePdfiumEngine } from "@embedpdf/engines/react";
 import './FlipBook.css';
+import Modal from './Modal';
+import Hotspot from './Hotspot';
 
 // Componente para renderizar enlaces sobre la página
 function PageLinks({ document, pageNum, links, onLinkClick, imgWidth, imgHeight }) {
@@ -52,6 +54,7 @@ function PageLinks({ document, pageNum, links, onLinkClick, imgWidth, imgHeight 
                     <div
                         key={link.id || idx}
                         onClick={(e) => {
+                            e.preventDefault();
                             e.stopPropagation();
                             onLinkClick(link);
                         }}
@@ -85,8 +88,37 @@ function PageLinks({ document, pageNum, links, onLinkClick, imgWidth, imgHeight 
     );
 }
 
+// Componente para renderizar hotspots sobre la página
+function PageHotspots({ pageNum, hotspots, onHotspotClick, imgWidth, imgHeight }) {
+    if (!hotspots || hotspots.length === 0) return null;
+
+    // Filtrar hotspots para esta página
+    const pageHotspots = hotspots.filter(h => h.page === pageNum);
+    
+    if (pageHotspots.length === 0) return null;
+
+    // Validar dimensiones
+    if (!imgWidth || !imgHeight || imgWidth === 0 || imgHeight === 0) {
+        return null;
+    }
+
+    return (
+        <>
+            {pageHotspots.map((hotspot) => (
+                <Hotspot
+                    key={hotspot.id}
+                    hotspot={hotspot}
+                    onClick={onHotspotClick}
+                    imgWidth={imgWidth}
+                    imgHeight={imgHeight}
+                />
+            ))}
+        </>
+    );
+}
+
 // Componente de página individual usando @embedpdf/engines
-function PDFPage({ engine, document, pageNum, renderScale = 1, isVisible = false, onLinkClick }) {
+function PDFPage({ engine, document, pageNum, renderScale = 1, isVisible = false, onLinkClick, hotspots, onHotspotClick }) {
     const imgRef = useRef(null);
     const [imageUrl, setImageUrl] = useState(null);
     const [imageLoaded, setImageLoaded] = useState(false);
@@ -259,24 +291,49 @@ function PDFPage({ engine, document, pageNum, renderScale = 1, isVisible = false
                             WebkitFontSmoothing: 'antialiased',
                         }}
                     />
-                    {links.length > 0 && imageLoaded && imageDimensions.width > 0 && (
-                        <div style={{ 
-                            position: 'absolute', 
-                            top: 0, 
-                            left: 0, 
-                            width: `${imageDimensions.width}px`,
-                            height: `${imageDimensions.height}px`,
-                            pointerEvents: 'none'
-                        }}>
-                            <PageLinks
-                                document={document}
-                                pageNum={pageNum}
-                                links={links}
-                                onLinkClick={onLinkClick}
-                                imgWidth={imageDimensions.width}
-                                imgHeight={imageDimensions.height}
-                            />
-                        </div>
+                    {imageLoaded && imageDimensions.width > 0 && (
+                        <>
+                            {/* Capa para enlaces */}
+                            <div style={{ 
+                                position: 'absolute', 
+                                top: 0, 
+                                left: 0, 
+                                width: `${imageDimensions.width}px`,
+                                height: `${imageDimensions.height}px`,
+                                pointerEvents: 'none'
+                            }}>
+                                {links.length > 0 && (
+                                    <PageLinks
+                                        document={document}
+                                        pageNum={pageNum}
+                                        links={links}
+                                        onLinkClick={onLinkClick}
+                                        imgWidth={imageDimensions.width}
+                                        imgHeight={imageDimensions.height}
+                                    />
+                                )}
+                            </div>
+                            {/* Capa separada para hotspots con mayor z-index */}
+                            <div style={{ 
+                                position: 'absolute', 
+                                top: 0, 
+                                left: 0, 
+                                width: `${imageDimensions.width}px`,
+                                height: `${imageDimensions.height}px`,
+                                pointerEvents: 'none',
+                                zIndex: 100
+                            }}>
+                                {hotspots && hotspots.length > 0 && (
+                                    <PageHotspots
+                                        pageNum={pageNum}
+                                        hotspots={hotspots}
+                                        onHotspotClick={onHotspotClick}
+                                        imgWidth={imageDimensions.width}
+                                        imgHeight={imageDimensions.height}
+                                    />
+                                )}
+                            </div>
+                        </>
                     )}
                 </div>
             ) : (
@@ -295,11 +352,13 @@ const MemoizedPDFPage = memo(PDFPage, (prevProps, nextProps) => {
         prevProps.isVisible === nextProps.isVisible &&
         prevProps.document === nextProps.document &&
         prevProps.engine === nextProps.engine &&
-        prevProps.onLinkClick === nextProps.onLinkClick
+        prevProps.onLinkClick === nextProps.onLinkClick &&
+        prevProps.hotspots === nextProps.hotspots &&
+        prevProps.onHotspotClick === nextProps.onHotspotClick
     );
 });
 
-export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700,  responsive = true, zoomDuration = 500, zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5] }) {
+export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700,  responsive = true, zoomDuration = 150, zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5] }) {
     const { engine, isLoading: engineLoading, error: engineError } = usePdfiumEngine();
     const [isEngineReady, setIsEngineReady] = useState(false);
     const [pdfDocument, setPdfDocument] = useState(null);
@@ -311,6 +370,7 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
     const [zoomIndex, setZoomIndex] = useState(1); // Índice en array de zooms (comienza en 100%)
     const [zooming, setZooming] = useState(false); // Si está animando zoom
     const [currentPage, setCurrentPage] = useState(1); // 1-based
+    const [isMobile, setIsMobile] = useState(false); // Detectar móvil
     const bookRef = useRef(null);
     const renderTokenRef = useRef(0);
     const viewportRef = useRef(null);
@@ -320,6 +380,11 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
     const [scrollLeft, setScrollLeft] = useState(0);
     const [scrollTop, setScrollTop] = useState(0);
     const zoomAnimationRef = useRef(null);
+    
+    // Estados para hotspots y modal
+    const [hotspots, setHotspots] = useState([]);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalContent, setModalContent] = useState(null);
 
     // Inline Lucide icons (subset) - stroke inherits current color
     const icons = {
@@ -366,6 +431,32 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
                 });
         }
     }, [engine, isEngineReady]);
+
+    // Detectar tamaño de pantalla (móvil vs desktop)
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Cargar hotspots desde JSON
+    useEffect(() => {
+        fetch('/hotspots.json')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.hotspots) {
+                    setHotspots(data.hotspots);
+                    console.log('Hotspots cargados:', data.hotspots.length);
+                }
+            })
+            .catch(err => {
+                console.error('Error cargando hotspots:', err);
+            });
+    }, []);
 
     // Cargar el documento PDF
     const loadPdf = useCallback(async () => {
@@ -625,6 +716,23 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
         }
     }, [pdfDocument]);
 
+    // Handler para clicks en hotspots
+    const handleHotspotClick = useCallback((hotspot) => {
+        console.log('Hotspot clicked:', hotspot);
+        setModalContent({
+            title: hotspot.title,
+            content: hotspot.content,
+            type: hotspot.type
+        });
+        setModalOpen(true);
+    }, []);
+
+    // Cerrar modal
+    const handleCloseModal = useCallback(() => {
+        setModalOpen(false);
+        setModalContent(null);
+    }, []);
+
     // TODO: handler para navegación desde enlaces internos del PDF
     // Esto requeriría soporte adicional de @embedpdf/engines para extraer anotaciones
     // const handleNavigate = useCallback(({ page, zoom: linkZoom }) => {
@@ -654,7 +762,8 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
 
     const totalPages = pdfDocument?.pageCount || pages.length || 0;
     const startPageIndex = totalPages > 0 ? Math.max(0, Math.min(currentPage - 1, totalPages - 1)) : 0;
-    const evenPages = pages.length % 2 === 0 ? pages : [...pages, null];
+    // En móvil no necesitamos páginas pares, en desktop sí
+    const evenPages = isMobile ? pages : (pages.length % 2 === 0 ? pages : [...pages, null]);
     // normalizar indice de página (evitar placeholder de página en blanco)
     const clampPage = useCallback((p) => {
         if (!pdfDocument) return p;
@@ -735,8 +844,10 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
 
     const effectiveBaseW = responsive ? baseViewport.w : width;
     const effectiveBaseH = responsive ? baseViewport.h : height;
-    const spreadWidth = effectiveBaseW;
-    const pageWidth = spreadWidth / 2;
+    
+    // En móvil: una sola página. En desktop: dos páginas (spread)
+    const spreadWidth = isMobile ? effectiveBaseW : effectiveBaseW;
+    const pageWidth = isMobile ? spreadWidth : spreadWidth / 2;
     const pageHeight = effectiveBaseH;
 
     // viewport mantiene tamaño base (spread original) para crear área de paneo
@@ -757,11 +868,8 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
                 </div>
                 <div className="control-group zoom-group">
                     <button className="btn ghost" onClick={() => zoomOut()} disabled={zooming || zoomIndex <= 0} aria-label="Alejar" title="Alejar">{icons.minus}</button>
-                    <div className="slider-wrapper" title="Zoom">
-                        <input className="zoom-slider" type="range" min={0} max={zooms.length - 1} step={1} value={zoomIndex} onChange={e => { setZoomIndex(parseInt(e.target.value)); zoomTo(zooms[parseInt(e.target.value)]); }} disabled={zooming} />
-                    </div>
-                    <button className="btn ghost" onClick={() => zoomIn()} disabled={zooming || zoomIndex >= zooms.length - 1} aria-label="Acercar" title="Acercar">{icons.plus}</button>
                     <span className="zoom-label" aria-live="polite">{Math.round(zoom * 100)}%</span>
+                    <button className="btn ghost" onClick={() => zoomIn()} disabled={zooming || zoomIndex >= zooms.length - 1} aria-label="Acercar" title="Acercar">{icons.plus}</button>
                     <button className="btn ghost" onClick={resetZoom} disabled={zoom === 1 || zooming} aria-label="Reset zoom" title="Restablecer zoom (100%)">{icons.refreshCw}</button>
                 </div>
                 {rendering && <div className="render-indicator">Renderizando…</div>}
@@ -786,15 +894,15 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
                         minWidth={315}
                         maxWidth={2000}
                         maxHeight={pageHeight}
-                        drawShadow
-                        showCover={true}
-                        usePortrait={false}
+                        drawShadow = {false}
+                        showCover={isMobile ? false : true}
+                        usePortrait={isMobile}
                         mobileScrollSupport
                         showPageCorners={false}
                         ref={bookRef}
                         startPage={startPageIndex}
                         className="flipbook"
-                        useMouseEvents={zoom <=1}
+                        useMouseEvents={zoom <=1 && !modalOpen} // desactivar eventos de mouse si hay zoom o modal abierto
                         flippingTime={300}
                         onFlip={handleFlip}
                     >
@@ -812,6 +920,8 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
                                         renderScale={zoom}
                                         isVisible={isVisible}
                                         onLinkClick={handleLinkClick}
+                                        hotspots={hotspots}
+                                        onHotspotClick={handleHotspotClick}
                                     />
                                 </div>
                             );
@@ -819,6 +929,17 @@ export default function FlipBook({ src = '/test.pdf', width = 1000, height = 700
                     </HTMLFlipBook>
                 </div>
             </div>
+            
+            {/* Modal para hotspots */}
+            {modalOpen && modalContent && (
+                <Modal
+                    isOpen={modalOpen}
+                    onClose={handleCloseModal}
+                    title={modalContent.title}
+                    content={modalContent.content}
+                    type={modalContent.type}
+                />
+            )}
         </div>
     );
 }

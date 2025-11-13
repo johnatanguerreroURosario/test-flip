@@ -1,0 +1,70 @@
+{
+  "hotspots": [
+    {
+      "id": "hotspot-1",
+      "page": 1,
+      "position": {
+        "x": 200,
+        "y": 150,
+        "width": 100,
+        "height": 100
+      },
+      "type": "text",
+      "title": "Título del Hotspot 1",
+      "content": {
+        "text": "Este es un ejemplo de hotspot con contenido de texto. Puedes agregar cualquier información relevante aquí."
+      },
+      "tooltip": "Click para más información"
+    },
+    {
+      "id": "hotspot-2",
+      "page": 1,
+      "position": {
+        "x": 350,
+        "y": 200,
+        "width": 120,
+        "height": 80
+      },
+      "type": "image",
+      "title": "Ejemplo con Imagen",
+      "content": {
+        "text": "Este hotspot muestra contenido con imagen.",
+        "imageUrl": "https://picsum.photos/600/400"
+      },
+      "tooltip": "Ver imagen"
+    },
+    {
+      "id": "hotspot-3",
+      "page": 2,
+      "position": {
+        "x": 180,
+        "y": 250,
+        "width": 110,
+        "height": 110
+      },
+      "type": "video",
+      "title": "Ejemplo con Video",
+      "content": {
+        "text": "Este hotspot incluye contenido de video embebido.",
+        "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+      },
+      "tooltip": "Reproducir video"
+    },
+    {
+      "id": "hotspot-4",
+      "page": 3,
+      "position": {
+        "x": 250,
+        "y": 180,
+        "width": 90,
+        "height": 90
+      },
+      "type": "text",
+      "title": "Más Información",
+      "content": {
+        "text": "Puedes personalizar estos hotspots editando el archivo hotspots.json en la carpeta public. Define la página, posición, tipo de contenido y más."
+      },
+      "tooltip": "Información adicional"
+    }
+  ]
+}
