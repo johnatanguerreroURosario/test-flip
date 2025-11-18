@@ -38,7 +38,7 @@ export default function FlipBook({
     const isMobile = useIsMobile();
     const hotspots = useHotspots();
     const { pdfDocument, loading, error } = usePdfLoader({ engine, isEngineReady, src });
-    const baseViewport = useResponsiveViewport({ containerRef, width, height, responsive, isFullscreen });
+    const baseViewport = useResponsiveViewport({ containerRef, width, height, responsive, isFullscreen, isMobile });
     const { zoom, zoomIndex, zooming, zoomIn, zoomOut, resetZoom, maxZoomIndex } = useZoom({ 
         zoomDuration, 
         zooms, 
@@ -305,6 +305,7 @@ export default function FlipBook({
     const effectiveBaseW = responsive ? baseViewport.w : width;
     const effectiveBaseH = responsive ? baseViewport.h : height;
     const spreadWidth = effectiveBaseW;
+    // En móvil queremos que la página use todo el ancho disponible
     const pageWidth = isMobile ? spreadWidth : spreadWidth / 2;
     const pageHeight = effectiveBaseH;
     const totalPages = pdfDocument.pageCount;
@@ -345,7 +346,7 @@ export default function FlipBook({
                 <div 
                     className="flipbook-wrapper"
                     style={{ 
-                        width: spreadWidth,
+                        width: isMobile ? '100%' : spreadWidth,
                         height: pageHeight,
                         transform: `scale(${zoom})`,
                         transformOrigin: 'top left',
@@ -355,10 +356,10 @@ export default function FlipBook({
                     <HTMLFlipBook
                         width={pageWidth}
                         height={pageHeight}
-                        size="fixed"
+                        size="stretch"
                         drawShadow={false}
-                        showCover={!isMobile}
-                        usePortrait={false}
+                        showCover={false}
+                        usePortrait={isMobile}
                         showPageCorners={false}
                         disableFlipByClick={isMobile}
                         useMouseEvents={zoom <= 1 && !modalOpen}
@@ -367,6 +368,7 @@ export default function FlipBook({
                         startPage={startPageIndex}
                         className="flipbook"
                         onFlip={handleFlip}
+                        
                     >
                         {evenPages.map((pageData, idx) => {
                             const pageNumber = idx + 1;

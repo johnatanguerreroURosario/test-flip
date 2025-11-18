@@ -201,15 +201,47 @@ export function useHotspots() {
 }
 
 // Hook para viewport responsivo
-export function useResponsiveViewport({ containerRef, width, height, responsive, isFullscreen }) {
-    const [baseViewport, setBaseViewport] = useState({ w: width, h: height });
+export function useResponsiveViewport({ containerRef, width, height, responsive, isFullscreen, isMobile }) {
+    const [baseViewport, setBaseViewport] = useState(() => {
+        // Inicialización más inteligente
+        if (responsive && typeof window !== 'undefined') {
+            const isMobileView = window.innerWidth < 768;
+            // En móvil queremos una sola página a ancho casi completo,
+            // en desktop usamos el spread de dos páginas
+            const singlePageRatio = height / (width / 2); // ratio de una página individual
+            const spreadRatio = height / width; // ratio del spread completo
+            const ratio = isMobileView ? singlePageRatio : spreadRatio;
+            
+            // Menos margen en móvil para aprovechar todo el ancho
+            const horizontalMargin = isMobileView ? 4 : 32;
+            const maxContentWidth = isMobileView ? window.innerWidth - horizontalMargin : Math.min(window.innerWidth - horizontalMargin, width);
+            const availableW = Math.max(320, maxContentWidth);
+            const availableH = window.innerHeight - 150; // espacio para controles
+            
+            // Calcular basándose en qué dimensión es más restrictiva
+            let targetW = Math.max(320, availableW);
+            let targetH = targetW * ratio;
+            
+            // Si la altura calculada excede el espacio disponible, ajustar por altura
+            if (targetH > availableH) {
+                targetH = availableH;
+                targetW = targetH / ratio;
+            }
+            
+            return { w: Math.round(targetW), h: Math.round(targetH) };
+        }
+        return { w: width, h: height };
+    });
 
     useEffect(() => {
-        const ratio = height / width;
-        
         function recalc() {
-            if (!containerRef.current) return;
             const container = containerRef.current;
+            const isMobileView = isMobile || window.innerWidth < 768;
+            
+            // En móvil el ratio es de una página sola, en desktop es de dos páginas
+            const singlePageRatio = height / (width / 2);
+            const spreadRatio = height / width;
+            const ratio = isMobileView ? singlePageRatio : spreadRatio;
             
             let targetW, targetH;
             
@@ -220,7 +252,7 @@ export function useResponsiveViewport({ containerRef, width, height, responsive,
                 
                 // Mantener aspect ratio
                 const viewportRatio = availableW / availableH;
-                const contentRatio = 1 / ratio; // ratio del contenido (spread = 2 páginas)
+                const contentRatio = 1 / ratio;
                 
                 if (viewportRatio > contentRatio) {
                     // Limitado por altura
@@ -233,9 +265,20 @@ export function useResponsiveViewport({ containerRef, width, height, responsive,
                 }
             } else if (responsive) {
                 // Modo normal responsivo
-                const cw = container.clientWidth;
-                targetW = Math.max(320, Math.min(cw - 32, width));
+                const cw = container ? container.clientWidth : window.innerWidth;
+                const availableH = window.innerHeight - 150; // espacio para controles
+                
+                // Menos margen en móvil para aprovechar más espacio y una sola página
+                const horizontalMargin = isMobileView ? 4 : 32;
+                const contentMaxWidth = isMobileView ? cw - horizontalMargin : Math.min(cw - horizontalMargin, width);
+                targetW = Math.max(320, contentMaxWidth);
                 targetH = targetW * ratio;
+                
+                // Si la altura excede el espacio disponible, ajustar
+                if (targetH > availableH) {
+                    targetH = availableH;
+                    targetW = targetH / ratio;
+                }
             } else {
                 // Modo fijo
                 targetW = width;
@@ -249,15 +292,17 @@ export function useResponsiveViewport({ containerRef, width, height, responsive,
             });
         }
         
+        // Ejecutar inmediatamente
         recalc();
         
+        // Observar cambios en el container
         const ro = new ResizeObserver(recalc);
         if (containerRef.current) ro.observe(containerRef.current);
         
         window.addEventListener('resize', recalc);
         window.addEventListener('orientationchange', recalc);
         
-        // Recalcular cuando cambia fullscreen
+        // Recalcular después de un breve delay para asegurar que el DOM esté listo
         const timer = setTimeout(recalc, 100);
         
         return () => {
@@ -266,7 +311,7 @@ export function useResponsiveViewport({ containerRef, width, height, responsive,
             window.removeEventListener('resize', recalc);
             window.removeEventListener('orientationchange', recalc);
         };
-    }, [responsive, width, height, containerRef, isFullscreen]);
+    }, [responsive, width, height, containerRef, isFullscreen, isMobile]);
 
     return baseViewport;
 }
