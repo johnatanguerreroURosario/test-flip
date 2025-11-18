@@ -358,10 +358,10 @@ export default function FlipBook({
                         key={flipbookKey}
                         width={pageWidth}
                         height={pageHeight}
-                        size="stretch"
+                        size={isMobile ? 'fixed' : 'stretch'} /* Fixed obligatorio en mobile para una sola página */
                         drawShadow={false}
                         showCover={false}
-                        usePortrait={isMobile}
+                        usePortrait={isMobile ? true : false} /* True obligatorio en mobile para una sola página */
                         showPageCorners={false}
                         disableFlipByClick={isMobile}
                         useMouseEvents={zoom <= 1 && !modalOpen}
