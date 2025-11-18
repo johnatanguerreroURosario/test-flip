@@ -309,9 +309,10 @@ export default function FlipBook({
     const pageWidth = isMobile ? spreadWidth : spreadWidth / 2;
     const pageHeight = effectiveBaseH;
     const totalPages = pdfDocument.pageCount;
-    const evenPages = isMobile ? pages : (pages.length % 2 === 0 ? pages : [...pages, null]);
+    const bookPages = isMobile ? pages : (pages.length % 2 === 0 ? pages : [...pages, null]);
     const clampedPage = Math.min(currentPage, pdfDocument.pageCount);
     const startPageIndex = Math.max(0, Math.min(currentPage - 1, totalPages - 1));
+    const flipbookKey = `${isMobile ? 'mobile' : 'desktop'}-${totalPages}`;
 
     const viewportStyle = isFullscreen ? {} : {
         width: effectiveBaseW + 'px',
@@ -354,6 +355,7 @@ export default function FlipBook({
                     }}
                 >
                     <HTMLFlipBook
+                        key={flipbookKey}
                         width={pageWidth}
                         height={pageHeight}
                         size="stretch"
@@ -363,6 +365,7 @@ export default function FlipBook({
                         showPageCorners={false}
                         disableFlipByClick={isMobile}
                         useMouseEvents={zoom <= 1 && !modalOpen}
+                        mobileScrollSupport={isMobile}
                         flippingTime={300}
                         ref={bookRef}
                         startPage={startPageIndex}
@@ -370,7 +373,7 @@ export default function FlipBook({
                         onFlip={handleFlip}
                         
                     >
-                        {evenPages.map((pageData, idx) => {
+                        {bookPages.map((pageData, idx) => {
                             const pageNumber = idx + 1;
                             const isVisible = Math.abs(pageNumber - currentPage) <= 1;
                             

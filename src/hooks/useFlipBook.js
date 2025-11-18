@@ -1,5 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+const DEFAULT_MOBILE_BREAKPOINT = 768;
+
+const getIsTouchDevice = () => {
+    if (typeof window === 'undefined') return false;
+    const nav = typeof navigator !== 'undefined' ? navigator : null;
+    const maxTouch = nav?.maxTouchPoints || nav?.msMaxTouchPoints || 0;
+    return 'ontouchstart' in window || maxTouch > 0;
+};
+
+const computeIsMobileViewport = (breakpoint = DEFAULT_MOBILE_BREAKPOINT) => {
+    if (typeof window === 'undefined') return false;
+    const { innerWidth: width, innerHeight: height } = window;
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches;
+    const touchDevice = getIsTouchDevice();
+    if (width <= breakpoint) {
+        return true;
+    }
+    const shortestSide = Math.min(width, height);
+    return touchDevice && coarsePointer && shortestSide <= breakpoint + 160;
+};
+
 // Hook para manejar zoom animado
 export function useZoom({ zoomDuration = 150, zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5], viewportRef }) {
     const [zoom, setZoom] = useState(1);
@@ -164,18 +185,24 @@ export function usePdfLoader({ engine, isEngineReady, src }) {
 }
 
 // Hook para detectar móvil
-export function useIsMobile() {
-    const [isMobile, setIsMobile] = useState(false);
+export function useIsMobile(breakpoint = DEFAULT_MOBILE_BREAKPOINT) {
+    const [isMobile, setIsMobile] = useState(() => computeIsMobileViewport(breakpoint));
 
     useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
         const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768);
+            setIsMobile(computeIsMobileViewport(breakpoint));
         };
-        
+
         checkMobile();
         window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
+        window.addEventListener('orientationchange', checkMobile);
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+            window.removeEventListener('orientationchange', checkMobile);
+        };
+    }, [breakpoint]);
 
     return isMobile;
 }
@@ -290,6 +317,7 @@ export function useResponsiveViewport({ containerRef, width, height, responsive,
                 const newH = Math.round(targetH);
                 return (v.w !== newW || v.h !== newH) ? { w: newW, h: newH } : v;
             });
+            
         }
         
         // Ejecutar inmediatamente
