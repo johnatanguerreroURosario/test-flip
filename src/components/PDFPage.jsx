@@ -46,11 +46,18 @@ function PageLinks({ document, pageNum, links, onLinkClick, imgWidth, imgHeight 
 }
 
 // Componente para renderizar hotspots sobre la página
-function PageHotspots({ pageNum, hotspots, onHotspotClick, imgWidth, imgHeight }) {
-    if (!hotspots?.length || !imgWidth || !imgHeight) return null;
+function PageHotspots({ document, pageNum, hotspots, onHotspotClick, imgWidth, imgHeight }) {
+    if (!hotspots?.length || !imgWidth || !imgHeight || !document) return null;
+
+    const page = document.pages[pageNum - 1];
+    if (!page) return null;
 
     const pageHotspots = hotspots.filter(h => h.page === pageNum);
     if (!pageHotspots.length) return null;
+
+    // Obtener tamaño original de la página PDF
+    const originalPageWidth = page.size.width;
+    const originalPageHeight = page.size.height;
 
     return (
         <>
@@ -61,6 +68,8 @@ function PageHotspots({ pageNum, hotspots, onHotspotClick, imgWidth, imgHeight }
                     onClick={onHotspotClick}
                     imgWidth={imgWidth}
                     imgHeight={imgHeight}
+                    originalPageWidth={originalPageWidth}
+                    originalPageHeight={originalPageHeight}
                 />
             ))}
         </>
@@ -230,6 +239,7 @@ function PDFPage({
                             <div className="pdf-hotspot-layer">
                                 {hotspots?.length > 0 && (
                                     <PageHotspots
+                                        document={document}
                                         pageNum={pageNum}
                                         hotspots={hotspots}
                                         onHotspotClick={onHotspotClick}

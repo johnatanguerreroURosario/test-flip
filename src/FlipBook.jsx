@@ -147,15 +147,11 @@ export default function FlipBook({
         if (!container) return;
 
         if (!document.fullscreenElement) {
-            container.requestFullscreen().then(() => {
-                setIsFullscreen(true);
-            }).catch(err => {
+            container.requestFullscreen().catch(err => {
                 console.error('Error al entrar en pantalla completa:', err);
             });
         } else {
-            document.exitFullscreen().then(() => {
-                setIsFullscreen(false);
-            }).catch(err => {
+            document.exitFullscreen().catch(err => {
                 console.error('Error al salir de pantalla completa:', err);
             });
         }
@@ -192,12 +188,46 @@ export default function FlipBook({
     // Detectar cambios en fullscreen
     useEffect(() => {
         const handleFullscreenChange = () => {
-            setIsFullscreen(!!document.fullscreenElement);
+            const isNowFullscreen = !!document.fullscreenElement;
+            setIsFullscreen(isNowFullscreen);
+            
+            // Pequeño delay para asegurar que el DOM se actualice
+            setTimeout(() => {
+                // Forzar recálculo del viewport
+                window.dispatchEvent(new Event('resize'));
+                
+                // Actualizar el tamaño del flipbook sin remontarlo
+                const api = bookRef.current?.pageFlip();
+                if (api && typeof api.updateState === 'function') {
+                    api.updateState();
+                }
+            }, 50);
         };
 
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
+    
+    // Actualizar tamaño del flipbook cuando cambien las dimensiones
+    useEffect(() => {
+        if (!pdfDocument) return;
+        
+        const api = bookRef.current?.pageFlip();
+        if (!api) return;
+        
+        // Dar tiempo para que el DOM se actualice
+        const timer = setTimeout(() => {
+            if (typeof api.update === 'function') {
+                try {
+                    api.update();
+                } catch {
+                    // Silenciar errores si la API no soporta update
+                }
+            }
+        }, 100);
+        
+        return () => clearTimeout(timer);
+    }, [baseViewport.w, baseViewport.h, pdfDocument]);
 
     // Panning con zoom
     useEffect(() => {

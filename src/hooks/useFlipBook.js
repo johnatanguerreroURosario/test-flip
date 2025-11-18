@@ -331,10 +331,13 @@ export function useResponsiveViewport({ containerRef, width, height, responsive,
         window.addEventListener('orientationchange', recalc);
         
         // Recalcular después de un breve delay para asegurar que el DOM esté listo
+        // Especialmente importante después de cambios de fullscreen
         const timer = setTimeout(recalc, 100);
+        const timer2 = setTimeout(recalc, 300);
         
         return () => {
             clearTimeout(timer);
+            clearTimeout(timer2);
             ro.disconnect();
             window.removeEventListener('resize', recalc);
             window.removeEventListener('orientationchange', recalc);
