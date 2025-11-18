@@ -411,7 +411,7 @@ export default function FlipBook({
                             const isVisible = Math.abs(pageNumber - currentPage) <= 1;
                             
                             return (
-                                <div className="page" key={idx} data-density={pageData ? 'hard' : 'soft'}>
+                                <div className="page" key={idx}>
                                     <PDFPage 
                                         engine={engine}
                                         document={pdfDocument}
