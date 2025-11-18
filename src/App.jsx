@@ -6,7 +6,7 @@ function App() {
   return (
     <>
       <div style={{ background:'#f0f2f5'}}>
-        <FlipBook src='https://test-flip.vercel.app/c.pdf' />
+        <FlipBook src='/c.pdf' />
       </div>
     </>
   )

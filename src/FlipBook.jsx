@@ -157,8 +157,12 @@ export default function FlipBook({
         }
     }, []);
 
-    const goPrev = () => bookRef.current?.pageFlip().flipPrev();
-    const goNext = () => bookRef.current?.pageFlip().flipNext();
+    const goPrev = () => {
+        bookRef.current?.pageFlip().flipPrev();
+    }
+    const goNext = () => {
+        bookRef.current?.pageFlip().flipNext();
+    }
 
     // Ajustar página actual
     useEffect(() => {
@@ -390,13 +394,12 @@ export default function FlipBook({
                         height={pageHeight}
                         size={isMobile ? 'fixed' : 'stretch'} /* Fixed obligatorio en mobile para una sola página */
                         drawShadow={false}
-                        showCover={false}
+                        showCover={true}
                         usePortrait={isMobile ? true : false} /* True obligatorio en mobile para una sola página */
                         showPageCorners={false}
-                        disableFlipByClick={isMobile}
                         useMouseEvents={zoom <= 1 && !modalOpen}
                         mobileScrollSupport={isMobile}
-                        flippingTime={300}
+                        flippingTime={1000}
                         ref={bookRef}
                         startPage={startPageIndex}
                         className="flipbook"
