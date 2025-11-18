@@ -241,7 +241,8 @@ export default function FlipBook({
         let panState = { active: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 };
         
         function onPointerDown(e) {
-            if (zoom <= 1) return;
+            // No activar panning si la modal está abierta o el zoom es 1
+            if (zoom <= 1 || modalOpen) return;
             panState = {
                 active: true,
                 startX: e.clientX,
@@ -277,7 +278,7 @@ export default function FlipBook({
             window.removeEventListener('pointermove', onPointerMove);
             window.removeEventListener('pointerup', onPointerUp);
         };
-    }, [zoom]);
+    }, [zoom, modalOpen]);
 
     // Estados de carga
     if (engineLoading || !isEngineReady) {

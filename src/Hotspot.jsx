@@ -63,6 +63,12 @@ export default function Hotspot({ hotspot, onClick, imgWidth, imgHeight, origina
         e.nativeEvent.stopImmediatePropagation();
     };
 
+    const handleTouchEnd = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick(hotspot);
+    };
+
     return (
         <div
             className="hotspot-wrapper"
@@ -89,11 +95,9 @@ export default function Hotspot({ hotspot, onClick, imgWidth, imgHeight, origina
                 onTouchStart={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    setShowTooltip(true);
                 }}
-                onTouchEnd={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }}
+                onTouchEnd={handleTouchEnd}
                 style={{
                     width: '100%',
                     height: '100%',
