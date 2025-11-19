@@ -415,7 +415,7 @@ export default function FlipBook({
                         usePortrait={isMobile ? true : false} /* True obligatorio en mobile para una sola página */
                         showPageCorners={false}
                         useMouseEvents={zoom <= 1}
-                        mobileScrollSupport={false}
+                        mobileScrollSupport={zoom <= 1}
                         flippingTime={200}
                         ref={bookRef}
                         startPage={startPageIndex}
