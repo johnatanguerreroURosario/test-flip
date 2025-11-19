@@ -24,6 +24,26 @@ export default function Modal({ isOpen, onClose, title, content, type = 'text' }
 
     if (!isOpen) return null;
 
+    // Manejar clic en overlay
+    const handleOverlayClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+    };
+
+    // Prevenir propagación en el contenedor del modal
+    const handleContainerClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    // Manejar cierre del botón
+    const handleCloseClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+    };
+
     // Renderizar contenido según el tipo
     const renderContent = () => {
         if (!content) return null;
@@ -75,13 +95,22 @@ export default function Modal({ isOpen, onClose, title, content, type = 'text' }
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <div 
+            className="modal-overlay" 
+            onClick={handleOverlayClick}
+            onTouchEnd={handleOverlayClick}
+        >
+            <div 
+                className="modal-container" 
+                onClick={handleContainerClick}
+                onTouchEnd={handleContainerClick}
+            >
                 <div className="modal-header">
                     <h2 className="modal-title">{title || 'Información'}</h2>
                     <button 
                         className="modal-close-btn" 
-                        onClick={onClose}
+                        onClick={handleCloseClick}
+                        onTouchEnd={handleCloseClick}
                         aria-label="Cerrar modal"
                         title="Cerrar (Esc)"
                     >
