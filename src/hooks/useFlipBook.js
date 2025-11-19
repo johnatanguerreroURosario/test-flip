@@ -22,9 +22,9 @@ const computeIsMobileViewport = (breakpoint = DEFAULT_MOBILE_BREAKPOINT) => {
 };
 
 // Hook para manejar zoom animado
-export function useZoom({ zoomDuration = 150, zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5], viewportRef }) {
+export function useZoom({ zoomDuration = 150, zooms = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5], viewportRef }) {
     const [zoom, setZoom] = useState(1);
-    const [zoomIndex, setZoomIndex] = useState(1);
+    const [zoomIndex, setZoomIndex] = useState(0);
     const [zooming, setZooming] = useState(false);
     const [scrollLeft, setScrollLeft] = useState(0);
     const [scrollTop, setScrollTop] = useState(0);
@@ -111,8 +111,8 @@ export function useZoom({ zoomDuration = 150, zooms = [0.75, 1, 1.25, 1.5, 1.75,
     }, [zooming, zoomIndex, zooms, zoomTo]);
 
     const resetZoom = useCallback(() => {
-        setZoomIndex(1);
-        zoomTo(zooms[1]);
+        setZoomIndex(0);
+        zoomTo(zooms[0]);
     }, [zooms, zoomTo]);
 
     // Limpiar animación

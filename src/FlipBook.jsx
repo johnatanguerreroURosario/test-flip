@@ -19,7 +19,7 @@ export default function FlipBook({
     height = 700, 
     responsive = true, 
     zoomDuration = 150, 
-    zooms = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5] 
+    zooms = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5] 
 }) {
     const { engine, isLoading: engineLoading, error: engineError } = usePdfiumEngine();
     const [isEngineReady, setIsEngineReady] = useState(false);
@@ -196,7 +196,7 @@ export default function FlipBook({
             setIsFullscreen(isNowFullscreen);
             
             // Resetear zoom al salir de fullscreen
-            if (!isNowFullscreen && zoom !== zooms[1]) {
+            if (!isNowFullscreen && zoom !== zooms[0]) {
                 resetZoom();
             }
             
