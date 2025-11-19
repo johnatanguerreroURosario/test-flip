@@ -365,6 +365,7 @@ export default function FlipBook({
     const viewportStyle = isFullscreen ? {} : {
         width: effectiveBaseW + 'px',
         height: effectiveBaseH + 'px',
+        maxWidth: '100%',
         overflow: zoom > 1 ? 'auto' : 'hidden',
         cursor: zoom > 1 ? 'grab' : 'auto'
     };
@@ -396,6 +397,7 @@ export default function FlipBook({
                     style={{ 
                         width: isMobile ? '100%' : spreadWidth,
                         height: pageHeight,
+                        maxWidth: '100%',
                         transform: `scale(${zoom})`,
                         transformOrigin: 'top left',
                         transition: zooming ? 'none' : 'transform 0.3s ease-out',
@@ -413,7 +415,7 @@ export default function FlipBook({
                         usePortrait={isMobile ? true : false} /* True obligatorio en mobile para una sola página */
                         showPageCorners={false}
                         useMouseEvents={zoom <= 1}
-                        mobileScrollSupport={zoom <= 1}
+                        mobileScrollSupport={false}
                         flippingTime={200}
                         ref={bookRef}
                         startPage={startPageIndex}
