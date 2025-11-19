@@ -245,13 +245,21 @@ export default function FlipBook({
         
         let panState = { active: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 };
         
+        function getEventCoords(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+        
         function onPointerDown(e) {
             // No activar panning si la modal está abierta o el zoom es 1
             if (zoom <= 1 || modalOpen) return;
+            const coords = getEventCoords(e);
             panState = {
                 active: true,
-                startX: e.clientX,
-                startY: e.clientY,
+                startX: coords.x,
+                startY: coords.y,
                 scrollLeft: vp.scrollLeft,
                 scrollTop: vp.scrollTop
             };
@@ -261,8 +269,10 @@ export default function FlipBook({
         
         function onPointerMove(e) {
             if (!panState.active) return;
-            const dx = e.clientX - panState.startX;
-            const dy = e.clientY - panState.startY;
+            e.preventDefault();
+            const coords = getEventCoords(e);
+            const dx = coords.x - panState.startX;
+            const dy = coords.y - panState.startY;
             vp.scrollLeft = panState.scrollLeft - dx;
             vp.scrollTop = panState.scrollTop - dy;
         }
@@ -274,14 +284,23 @@ export default function FlipBook({
             }
         }
         
+        // Usar eventos tanto de pointer como de touch para mejor compatibilidad en mobile
         vp.addEventListener('pointerdown', onPointerDown, { passive: false });
+        vp.addEventListener('touchstart', onPointerDown, { passive: false });
         window.addEventListener('pointermove', onPointerMove, { passive: false });
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
         window.addEventListener('pointerup', onPointerUp, { passive: true });
+        window.addEventListener('touchend', onPointerUp, { passive: true });
+        window.addEventListener('touchcancel', onPointerUp, { passive: true });
         
         return () => {
             vp.removeEventListener('pointerdown', onPointerDown);
+            vp.removeEventListener('touchstart', onPointerDown);
             window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('touchmove', onPointerMove);
             window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('touchend', onPointerUp);
+            window.removeEventListener('touchcancel', onPointerUp);
         };
     }, [zoom, modalOpen]);
 
@@ -370,7 +389,6 @@ export default function FlipBook({
                 isFullscreen={isFullscreen}
                 onToggleFullscreen={toggleFullscreen}
             />
-            
             <div className={viewportClasses} ref={viewportRef} style={viewportStyle}>
                 {zoom > 1 && <div className="pan-overlay" />}
                 <div 
@@ -380,9 +398,11 @@ export default function FlipBook({
                         height: pageHeight,
                         transform: `scale(${zoom})`,
                         transformOrigin: 'top left',
-                        transition: zooming ? 'none' : 'transform 0.3s ease-out'
+                        transition: zooming ? 'none' : 'transform 0.3s ease-out',
+                        pointerEvents: zoom > 1 ? 'none' : 'auto'
                     }}
                 >
+        
                     <HTMLFlipBook
                         key={flipbookKey}
                         width={pageWidth}
@@ -393,13 +413,12 @@ export default function FlipBook({
                         usePortrait={isMobile ? true : false} /* True obligatorio en mobile para una sola página */
                         showPageCorners={false}
                         useMouseEvents={zoom <= 1}
-                        mobileScrollSupport={true}
+                        mobileScrollSupport={zoom <= 1}
                         flippingTime={200}
                         ref={bookRef}
                         startPage={startPageIndex}
                         className="flipbook"
-                        onFlip={handleFlip}
-                        
+                        onFlip={handleFlip}     
                     >
                         {bookPages.map((pageData, idx) => {
                             const pageNumber = idx + 1;
