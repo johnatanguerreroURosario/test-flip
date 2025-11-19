@@ -540,7 +540,7 @@
 
     /* Ocultar el grupo fullscreen separado en mobile */
     .flipbook-controls .fullscreen-group {
-        display: none;
+        display: none !important;
     }
 
     .flipbook-controls .zoom-group {
