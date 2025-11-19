@@ -40,6 +40,14 @@ export default function FlipBookControls({
                 >
                     <Icons.ChevronRight />
                 </button>
+                <button 
+                    className="btn ghost fullscreen-btn-mobile" 
+                    onClick={onToggleFullscreen}
+                    aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+                    title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+                >
+                    {isFullscreen ? <Icons.Minimize /> : <Icons.Maximize />}
+                </button>
             </div>
             
             <div className="control-group zoom-group">

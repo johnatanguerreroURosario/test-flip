@@ -354,6 +354,11 @@
     margin-left: auto;
 }
 
+/* Ocultar botón de fullscreen en nav-group en desktop */
+.flipbook-controls .nav-group .fullscreen-btn-mobile {
+    display: none;
+}
+
 
 /* Buttons */
 .flipbook-controls .btn {
@@ -420,6 +425,7 @@
     background: #f8fafc;
     color: #475569;
     display: inline-flex;
+    justify-content: center;
     align-items: center;
     gap: .25rem;
     border: 1px solid #e2e8f0;
@@ -483,9 +489,6 @@
     pointer-events: none;
 }
 
-.flipbook-controls .page-indicator {
-    margin: 0 .35rem;
-}
 
 /* Rendering indicator */
 .render-indicator {
@@ -527,6 +530,17 @@
 
     .flipbook-controls .nav-group {
         order: 1;
+    }
+
+    /* Mostrar botón fullscreen en nav-group en mobile */
+    .flipbook-controls .nav-group .fullscreen-btn-mobile {
+        display: inline-flex;
+        margin-left: 0.4rem;
+    }
+
+    /* Ocultar el grupo fullscreen separado en mobile */
+    .flipbook-controls .fullscreen-group {
+        display: none;
     }
 
     .flipbook-controls .zoom-group {

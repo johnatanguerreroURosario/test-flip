@@ -286,12 +286,12 @@ export default function FlipBook({
     }, [zoom, modalOpen]);
 
     // Estados de carga
-    if (engineLoading || !isEngineReady) {
+    if (engineLoading || !isEngineReady || loading) {
         return (
             <div className="flipbook-status">
                 <div className="loader-container">
-                    <div className="spinner"></div>
-                    <p className="loader-text">Inicializando motor PDF...</p>
+                    <div className="spinner pulse"></div>
+                    <p className="loader-text">Cargando PDF...</p>
                     <div className="loader-subtext">Preparando el entorno de visualización</div>
                 </div>
             </div>
@@ -304,17 +304,6 @@ export default function FlipBook({
                     <div className="error-icon">⚠</div>
                     <p className="error-text">Error al inicializar</p>
                     <div className="error-message">{engineError.message}</div>
-                </div>
-            </div>
-        );
-    }
-    if (loading) {
-        return (
-            <div className="flipbook-status">
-                <div className="loader-container">
-                    <div className="spinner pulse"></div>
-                    <p className="loader-text">Cargando PDF...</p>
-                    <div className="loader-subtext">Procesando documento</div>
                 </div>
             </div>
         );
