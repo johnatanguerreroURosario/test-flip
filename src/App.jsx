@@ -1,4 +1,3 @@
-import './App.css'
 import FlipBook from './FlipBook';
 
 function App() {
