@@ -195,6 +195,11 @@ export default function FlipBook({
             const isNowFullscreen = !!document.fullscreenElement;
             setIsFullscreen(isNowFullscreen);
             
+            // Resetear zoom al salir de fullscreen
+            if (!isNowFullscreen && zoom !== zooms[1]) {
+                resetZoom();
+            }
+            
             // Pequeño delay para asegurar que el DOM se actualice
             setTimeout(() => {
                 // Forzar recálculo del viewport
@@ -210,7 +215,7 @@ export default function FlipBook({
 
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    }, []);
+    }, [zoom, zooms, resetZoom]);
     
     // Actualizar tamaño del flipbook cuando cambien las dimensiones
     useEffect(() => {

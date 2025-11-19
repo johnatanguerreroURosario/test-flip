@@ -259,9 +259,20 @@ export function useResponsiveViewport({ containerRef, width, height, responsive,
         }
         return { w: width, h: height };
     });
+    
+    const recalcTimeoutRef = useRef(null);
+    const isRecalculatingRef = useRef(false);
 
     useEffect(() => {
         function recalc() {
+            // Evitar recálculos múltiples simultáneos
+            if (isRecalculatingRef.current) return;
+            if (recalcTimeoutRef.current) {
+                clearTimeout(recalcTimeoutRef.current);
+            }
+            
+            isRecalculatingRef.current = true;
+            
             const container = containerRef.current;
             const isMobileView = isMobile || window.innerWidth < 768;
             
@@ -318,29 +329,40 @@ export function useResponsiveViewport({ containerRef, width, height, responsive,
                 return (v.w !== newW || v.h !== newH) ? { w: newW, h: newH } : v;
             });
             
+            // Marcar recálculo como completado después de un breve delay
+            recalcTimeoutRef.current = setTimeout(() => {
+                isRecalculatingRef.current = false;
+            }, 200);
         }
         
         // Ejecutar inmediatamente
         recalc();
         
         // Observar cambios en el container
-        const ro = new ResizeObserver(recalc);
+        const ro = new ResizeObserver(() => {
+            if (!isRecalculatingRef.current) {
+                recalc();
+            }
+        });
         if (containerRef.current) ro.observe(containerRef.current);
         
-        window.addEventListener('resize', recalc);
-        window.addEventListener('orientationchange', recalc);
+        const handleResize = () => {
+            if (!isRecalculatingRef.current) {
+                recalc();
+            }
+        };
         
-        // Recalcular después de un breve delay para asegurar que el DOM esté listo
-        // Especialmente importante después de cambios de fullscreen
-        const timer = setTimeout(recalc, 100);
-        const timer2 = setTimeout(recalc, 300);
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('orientationchange', handleResize);
         
         return () => {
-            clearTimeout(timer);
-            clearTimeout(timer2);
+            if (recalcTimeoutRef.current) {
+                clearTimeout(recalcTimeoutRef.current);
+            }
+            isRecalculatingRef.current = false;
             ro.disconnect();
-            window.removeEventListener('resize', recalc);
-            window.removeEventListener('orientationchange', recalc);
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('orientationchange', handleResize);
         };
     }, [responsive, width, height, containerRef, isFullscreen, isMobile]);
 
